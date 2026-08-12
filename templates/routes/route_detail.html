@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>#routeMap{height:380px;border-radius:16px;}</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex align-items-center gap-3 mb-4">
+    <a href="{% url 'routes:home' %}" class="btn btn-sm btn-outline-secondary rounded-3"><i class="fas fa-arrow-left me-1"></i>Back</a>
+    <div>
+      <h4 class="fw-bold mb-0" style="color:var(--brand-primary);">{{ route.route_number }} — {{ route.route_name }}</h4>
+      <small class="text-muted">{{ route.source }} → {{ route.destination }} · {{ route.distance_km }} km · ₹{{ route.base_fare }} base fare</small>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <div id="routeMap" class="shadow-sm mb-3"></div>
+      <div class="card border-0 shadow-sm rounded-4 p-4">
+        <h6 class="fw-bold mb-3" style="color:var(--brand-primary);"><i class="fas fa-map-pin me-2"></i>Route Stops</h6>
+        {% for rs in route_stops %}
+        <div class="d-flex align-items-center gap-3 mb-2 pb-2 border-bottom">
+          <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold text-white"
+               style="width:30px;height:30px;min-width:30px;background:#1E3A5F;font-size:0.75rem;">
+            {{ rs.stop_order|add:1 }}
+          </div>
+          <div class="flex-grow-1">
+            <div class="fw-semibold">{{ rs.stop.name }}</div>
+            <small class="text-muted">+{{ rs.scheduled_minutes_from_start }} min · {{ rs.distance_from_source }} km · ₹{{ rs.fare_from_source }}</small>
+          </div>
+          {% if rs.stop.is_major %}<span class="badge" style="background:#FF6B35;color:#fff;font-size:0.7rem;">Major</span>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-sm rounded-4 p-4 mb-3">
+        <h6 class="fw-bold mb-3" style="color:var(--brand-primary);">Upcoming Trips</h6>
+        {% for s in upcoming_schedules %}
+        <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+          <div>
+            <div class="fw-semibold small">{{ s.travel_date|date:"d M" }} · {{ s.departure_time|time:"H:i" }}</div>
+            <small class="text-muted">{{ s.bus.bus_name }} · {{ s.available_seats }} seats</small>
+          </div>
+          <a href="{% url 'bookings:select_seats' s.id %}" class="btn btn-sm rounded-2" style="background:#1E3A5F;color:#fff;border:none;">Book</a>
+        </div>
+        {% empty %}
+        <p class="text-muted small">No upcoming trips scheduled.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const coords = {{ coords_json|safe }};
+const map = L.map('routeMap');
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'© OpenStreetMap'}).addTo(map);
+if (coords.length > 1) {
+  L.polyline(coords, {color:'#1E3A5F',weight:5,opacity:0.8}).addTo(map);
+  map.fitBounds(coords);
+  coords.forEach((c, i) => {
+    const icon = L.divIcon({html:`<div style="width:12px;height:12px;background:#FF6B35;border:2px solid #fff;border-radius:50%;"></div>`,className:'',iconSize:[12,12],iconAnchor:[6,6]});
+    L.marker(c, {icon}).addTo(map);
+  });
+} else {
+  map.setView([22.5645, 72.9289], 13);
+}
+</script>
+{% endblock %}

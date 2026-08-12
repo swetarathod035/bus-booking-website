@@ -1,0 +1,555 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}AnandBus — Your Smart City Bus Companion{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ─── Hero Section ────────────────────────────────────────────────────── */
+.hero-section {
+  min-height: 92vh;
+  background: linear-gradient(135deg, #0a1628 0%, #1E3A5F 40%, #2980B9 100%);
+  position: relative;
+  overflow: hidden;
+  display: flex; align-items: center;
+}
+.hero-section::before {
+  content: ''; position: absolute; inset: 0;
+  background: url("{% static 'images/hero-bg.jpg' %}") center/cover no-repeat;
+  opacity: 0.15;
+}
+.hero-bg-shapes .shape {
+  position: absolute; border-radius: 50%;
+  background: rgba(255,107,53,0.1);
+  animation: floatShape 6s ease-in-out infinite alternate;
+}
+@keyframes floatShape {
+  from { transform: translateY(0) scale(1); }
+  to   { transform: translateY(-30px) scale(1.05); }
+}
+.search-glass {
+  background: rgba(255,255,255,0.12);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 20px;
+  box-shadow: 0 25px 45px rgba(0,0,0,0.3);
+}
+.search-glass .form-select,
+.search-glass .form-control {
+  background: rgba(255,255,255,0.9);
+  border: none;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+}
+.search-glass .form-label {
+  color: rgba(255,255,255,0.9);
+  font-weight: 500; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.search-glass .btn-search {
+  background: linear-gradient(135deg, #FF6B35, #e55a24);
+  border: none; border-radius: 12px;
+  padding: 0.85rem 2.5rem;
+  font-size: 1rem; font-weight: 600;
+  letter-spacing: 0.5px;
+  box-shadow: 0 6px 20px rgba(255,107,53,0.45);
+  transition: all 0.3s ease;
+}
+.search-glass .btn-search:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(255,107,53,0.6);
+}
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(255,107,53,0.2); border: 1px solid rgba(255,107,53,0.4);
+  border-radius: 50px; padding: 6px 16px; font-size: 0.8rem; color: #FFB299;
+}
+.hero-stats .stat-item {
+  text-align: center; padding: 12px 20px;
+  background: rgba(255,255,255,0.08); border-radius: 12px;
+}
+.hero-stats .stat-num { font-size: 1.8rem; font-weight: 800; color: #fff; }
+.hero-stats .stat-label { font-size: 0.75rem; color: rgba(255,255,255,0.65); }
+
+/* ─── Place Cards ───────────────────────────────────────────────────────── */
+.place-carousel .place-card {
+  border-radius: 20px; overflow: hidden;
+  border: none; box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+  transition: all 0.4s cubic-bezier(.25,.8,.25,1);
+  cursor: pointer;
+}
+.place-carousel .place-card:hover { transform: translateY(-8px); box-shadow: 0 20px 50px rgba(0,0,0,0.2); }
+.place-card .card-img-top {
+  height: 220px; object-fit: cover;
+  transition: transform 0.5s ease;
+}
+.place-card:hover .card-img-top { transform: scale(1.08); }
+.place-card .place-img-wrapper { overflow: hidden; height: 220px; }
+.place-card .place-overlay {
+  position: absolute; top: 12px; left: 12px;
+  background: rgba(255,107,53,0.9); color: #fff;
+  border-radius: 20px; padding: 3px 12px; font-size: 0.72rem; font-weight: 600;
+}
+.place-card .card-body { padding: 1.2rem; }
+.place-card .card-title { font-size: 1rem; font-weight: 700; color: #1E3A5F; }
+.place-card .card-text { font-size: 0.82rem; color: #666; }
+.place-card .btn-book {
+  background: linear-gradient(135deg, #1E3A5F, #2980B9);
+  color: #fff; border: none; border-radius: 8px;
+  padding: 0.5rem 1.2rem; font-size: 0.82rem; font-weight: 600;
+  width: 100%; margin-top: 0.5rem; transition: all 0.3s;
+}
+.place-card .btn-book:hover { background: linear-gradient(135deg, #2980B9, #1E3A5F); transform: scale(1.02); }
+
+/* ─── Carousel Controls ─────────────────────────────────────────────────── */
+#placesCarousel .carousel-control-prev,
+#placesCarousel .carousel-control-next {
+  width: 44px; height: 44px; top: 50%; transform: translateY(-50%);
+  background: #1E3A5F; border-radius: 50%; opacity: 1;
+}
+#placesCarousel .carousel-indicators button {
+  background-color: #1E3A5F; border-radius: 50%;
+  width: 10px; height: 10px;
+}
+
+/* ─── Feature icons ─────────────────────────────────────────────────────── */
+.feature-icon-wrap {
+  width: 64px; height: 64px; border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; margin: 0 auto 1rem;
+}
+
+/* ─── Stops Table ───────────────────────────────────────────────────────── */
+.stops-grid .stop-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #fff; border: 1px solid #dee2e6;
+  border-radius: 8px; padding: 6px 12px;
+  font-size: 0.82rem; color: #1E3A5F; font-weight: 500;
+  transition: all 0.2s;
+}
+.stops-grid .stop-badge:hover {
+  background: #1E3A5F; color: #fff; border-color: #1E3A5F;
+  transform: scale(1.03);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- ─── HERO SECTION ───────────────────────────────────────────────────────── -->
+<section class="hero-section text-white">
+  <div class="hero-bg-shapes">
+    <div class="shape" style="width:400px;height:400px;top:-100px;right:-100px;animation-delay:0s;"></div>
+    <div class="shape" style="width:250px;height:250px;bottom:50px;left:-80px;animation-delay:2s;"></div>
+  </div>
+  <div class="container position-relative py-5">
+    <div class="row align-items-center g-5">
+      <!-- Hero text -->
+      <div class="col-lg-5 animate__animated animate__fadeInLeft">
+        <div class="hero-badge mb-3">
+          <i class="fas fa-map-marker-alt"></i> Anand, Gujarat — 20+ City Stops
+        </div>
+        <h1 class="display-4 fw-black lh-1 mb-3" style="font-weight:900 !important;">
+          Travel Smart<br>
+          <span style="color: var(--brand-accent);">Across Anand</span>
+        </h1>
+        <p class="lead opacity-75 mb-4">Book city bus tickets instantly. Real-time tracking, PDF tickets, and cashless payments — all in one place.</p>
+        <div class="row g-3 hero-stats">
+          <div class="col-4"><div class="stat-item"><div class="stat-num">{{ active_routes }}+</div><div class="stat-label">Active Routes</div></div></div>
+          <div class="col-4"><div class="stat-item"><div class="stat-num">20</div><div class="stat-label">City Stops</div></div></div>
+          <div class="col-4"><div class="stat-item"><div class="stat-num">{{ upcoming_schedules }}+</div><div class="stat-label">Daily Trips</div></div></div>
+        </div>
+      </div>
+      <!-- Search Widget -->
+      <div class="col-lg-7 animate__animated animate__fadeInRight">
+        <div class="search-glass p-4">
+          <h5 class="text-white fw-bold mb-4"><i class="fas fa-search me-2" style="color:var(--brand-accent);"></i>Find Your Bus</h5>
+          <form method="GET" action="{% url 'routes:search' %}" id="searchForm">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label"><i class="fas fa-circle-dot me-1" style="color:#4ade80;"></i>From</label>
+                <select class="form-select" name="source" id="sourceStop" required>
+                  <option value="" selected disabled hidden>Select Departure Stop</option>
+                  {% for stop in stops %}
+                    <option value="{{ stop.code }}">{{ stop.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label"><i class="fas fa-circle-dot me-1" style="color:#f87171;"></i>To</label>
+                <select class="form-select" name="destination" id="destStop" required>
+                  <option value="" selected disabled hidden>Select Destination Stop</option>
+                  {% for stop in stops %}
+                    <option value="{{ stop.code }}">{{ stop.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label"><i class="fas fa-calendar me-1"></i>Travel Date</label>
+                <input type="date" class="form-control" name="date" id="travelDate"
+                       value="{{ today }}" min="{{ today }}" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label"><i class="fas fa-users me-1"></i>Passengers</label>
+                <div class="input-group">
+                  <button class="btn btn-light border bg-white text-dark fw-bold px-3" type="button" onclick="changePax(-1)" style="border-radius:10px 0 0 10px;">
+                    <i class="fas fa-minus"></i>
+                  </button>
+                  <input type="text" class="form-control text-center fw-bold bg-white" id="paxText" value="1 Passenger" readonly style="border-left:none;border-right:none;">
+                  <input type="hidden" name="seats" id="paxValue" value="1">
+                  <button class="btn btn-light border bg-white text-dark fw-bold px-3" type="button" onclick="changePax(1)" style="border-radius:0 10px 10px 0;">
+                    <i class="fas fa-plus"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="col-12">
+                <button type="submit" class="btn btn-search text-white w-100">
+                  <i class="fas fa-bus me-2"></i>Search Available Buses
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Scroll indicator -->
+  <div class="position-absolute bottom-0 start-50 translate-middle-x pb-3 text-center animate__animated animate__bounce animate__infinite">
+    <i class="fas fa-chevron-down text-white opacity-50"></i>
+  </div>
+</section>
+
+<!-- ─── FEATURES STRIP ────────────────────────────────────────────────────── -->
+<section class="py-4 bg-white shadow-sm">
+  <div class="container">
+    <div class="row g-3 text-center">
+      {% for icon, color, label, desc in features %}{% endfor %}
+      <div class="col-6 col-md-3">
+        <div class="feature-icon-wrap" style="background:#EEF6FF;"><i class="fas fa-clock" style="color:#2980B9;"></i></div>
+        <h6 class="fw-bold small mb-1">Real-Time Tracking</h6>
+        <p class="text-muted" style="font-size:0.78rem;">Live bus location on interactive map</p>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="feature-icon-wrap" style="background:#FFF3EE;"><i class="fas fa-qrcode" style="color:#FF6B35;"></i></div>
+        <h6 class="fw-bold small mb-1">QR Tickets</h6>
+        <p class="text-muted" style="font-size:0.78rem;">Instant PDF with unique QR code</p>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="feature-icon-wrap" style="background:#F0FDF4;"><i class="fas fa-credit-card" style="color:#27AE60;"></i></div>
+        <h6 class="fw-bold small mb-1">Secure Payments</h6>
+        <p class="text-muted" style="font-size:0.78rem;">UPI, Cards, NetBanking via Razorpay</p>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="feature-icon-wrap" style="background:#FFFBEB;"><i class="fas fa-chair" style="color:#F39C12;"></i></div>
+        <h6 class="fw-bold small mb-1">Seat Selection</h6>
+        <p class="text-muted" style="font-size:0.78rem;">Choose your seat on interactive bus map</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── ACTIVE BUS ROUTES SECTION ─────────────────────────────────────────── -->
+<section class="py-5" style="background:#f8fafc;">
+  <div class="container">
+    <div class="text-center mb-4">
+      <span class="badge mb-2" style="background:rgba(41,128,185,0.12);color:var(--brand-primary);font-size:0.8rem;padding:6px 16px;border-radius:20px;">
+        <i class="fas fa-route me-1"></i>Active City Routes
+      </span>
+      <h2 class="fw-black mb-2" style="color:var(--brand-primary);">Currently Active Bus Routes</h2>
+      <p class="text-muted">Select an active route and book your bus seats directly from here!</p>
+    </div>
+
+    <div class="row g-4 justify-content-center">
+      {% for item in routes_data %}
+      <div class="col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 p-3 position-relative" style="background:#ffffff; border:1px solid #e2e8f0 !important;">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="badge px-3 py-2 rounded-pill fw-bold" style="background:var(--brand-primary) !important; color:#fff;">
+              Route {{ item.route.route_number }}
+            </span>
+            <span class="badge bg-success-subtle text-success border border-success px-3 py-1 rounded-pill fw-semibold">
+              <i class="fas fa-circle-check me-1"></i>ACTIVE
+            </span>
+          </div>
+
+          <h5 class="fw-bold text-dark mb-2">{{ item.route.route_name }}</h5>
+
+          <div class="p-3 rounded-3 mb-3" style="background:#f8fafc; border:1px solid #edf2f7;">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <i class="fas fa-map-marker-alt text-success fs-5"></i>
+              <div>
+                <small class="text-muted d-block" style="font-size:0.72rem;">SOURCE</small>
+                <span class="fw-bold text-dark small">{{ item.route.source.name }}</span>
+              </div>
+            </div>
+            <div class="border-start ms-2 ps-3 py-1 my-1 text-muted" style="border-left: 2px dashed #cbd5e1 !important; font-size:0.75rem;">
+              <i class="fas fa-arrow-down me-1 text-primary"></i> {{ item.route.distance_km }} km distance
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <i class="fas fa-location-dot text-danger fs-5"></i>
+              <div>
+                <small class="text-muted d-block" style="font-size:0.72rem;">DESTINATION</small>
+                <span class="fw-bold text-dark small">{{ item.route.destination.name }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center mb-3 px-1">
+            <div>
+              <small class="text-muted d-block" style="font-size:0.75rem;">Fare Starts At</small>
+              <span class="fw-bold fs-5 text-warning" style="color:#e55a24 !important;">₹{{ item.fare }}</span>
+            </div>
+            {% if item.upcoming_schedule %}
+              <div class="text-end">
+                <small class="text-muted d-block" style="font-size:0.75rem;">Next Departure</small>
+                <span class="badge bg-light text-dark border px-2 py-1 fw-bold">
+                  <i class="fas fa-clock text-primary me-1"></i>{{ item.upcoming_schedule.departure_time|time:"H:i" }} ({{ item.upcoming_schedule.travel_date|date:"d M" }})
+                </span>
+              </div>
+            {% endif %}
+          </div>
+
+          <div class="mt-auto">
+            {% if item.upcoming_schedule %}
+              <a href="{% url 'bookings:select_seats' item.upcoming_schedule.id %}?from={{ item.route.source.code }}&to={{ item.route.destination.code }}"
+                 onclick="this.href=this.getAttribute('data-base-href')+'&seats='+(document.getElementById('paxValue')?document.getElementById('paxValue').value:'1');"
+                 data-base-href="{% url 'bookings:select_seats' item.upcoming_schedule.id %}?from={{ item.route.source.code }}&to={{ item.route.destination.code }}"
+                 class="btn btn-lg w-100 rounded-3 fw-bold text-white shadow-sm py-2"
+                 style="background: linear-gradient(135deg,#FF6B35,#e55a24); border:none; font-size:0.95rem;">
+                <i class="fas fa-ticket me-2"></i>Book Seats Now
+              </a>
+            {% else %}
+              <a href="{% url 'routes:search' %}?source={{ item.route.source.code }}&destination={{ item.route.destination.code }}"
+                 class="btn btn-outline-primary w-100 rounded-3 fw-bold py-2">
+                <i class="fas fa-search me-2"></i>Search Buses for Route
+              </a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ─── EXPLORE ANAND CAROUSEL ────────────────────────────────────────────── -->
+<section class="py-5" style="background: var(--bg-light);">
+  <div class="container">
+    <div class="text-center mb-5">
+      <span class="badge mb-2" style="background:rgba(255,107,53,0.15);color:var(--brand-accent);font-size:0.78rem;padding:6px 14px;border-radius:20px;">
+        <i class="fas fa-map-pin me-1"></i>Explore Anand
+      </span>
+      <h2 class="fw-black mb-2" style="color:var(--brand-primary);">Popular Places in Anand</h2>
+      <p class="text-muted">Discover the heritage, spirituality, and natural beauty of Anand district</p>
+    </div>
+
+    <!-- Carousel -->
+    <div id="placesCarousel" class="carousel slide" data-bs-ride="carousel" data-bs-interval="2800">
+      <div class="carousel-indicators">
+        {% for place in places %}
+          <button type="button" data-bs-target="#placesCarousel" data-bs-slide-to="{{ forloop.counter0 }}"
+            {% if forloop.first %}class="active"{% endif %}></button>
+        {% endfor %}
+      </div>
+      <div class="carousel-inner place-carousel">
+
+        <!-- Group places in sets of 3 for large screens -->
+        <div class="carousel-item active">
+          <div class="row g-4 px-3">
+            {% for place in places|slice:":3" %}
+            <div class="col-md-4">
+              <div class="card place-card h-100 position-relative border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="place-img-wrapper position-relative" style="height:220px; overflow:hidden;">
+                  <img src="{% static place.image %}" class="card-img-top w-100 h-100" style="object-fit:cover; transition: transform 0.5s ease;" alt="{{ place.name }}">
+                  <span class="place-overlay">{{ place.tag }}</span>
+                </div>
+                <div class="card-body p-4">
+                  <div class="d-flex align-items-start gap-2 mb-2">
+                    <span class="fs-4">{{ place.icon }}</span>
+                    <div>
+                      <h5 class="card-title mb-0 fw-bold" style="color:#1E3A5F;">{{ place.name }}</h5>
+                      <small class="text-muted">{{ place.subtitle }}</small>
+                    </div>
+                  </div>
+                  <p class="card-text text-secondary mb-0" style="font-size:0.85rem; line-height:1.5;">{{ place.description|truncatewords:20 }}</p>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="carousel-item">
+          <div class="row g-4 px-3">
+            {% for place in places|slice:"3:6" %}
+            <div class="col-md-4">
+              <div class="card place-card h-100 position-relative border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="place-img-wrapper position-relative" style="height:220px; overflow:hidden;">
+                  <img src="{% static place.image %}" class="card-img-top w-100 h-100" style="object-fit:cover; transition: transform 0.5s ease;" alt="{{ place.name }}">
+                  <span class="place-overlay">{{ place.tag }}</span>
+                </div>
+                <div class="card-body p-4">
+                  <div class="d-flex align-items-start gap-2 mb-2">
+                    <span class="fs-4">{{ place.icon }}</span>
+                    <div>
+                      <h5 class="card-title mb-0 fw-bold" style="color:#1E3A5F;">{{ place.name }}</h5>
+                      <small class="text-muted">{{ place.subtitle }}</small>
+                    </div>
+                  </div>
+                  <p class="card-text text-secondary mb-0" style="font-size:0.85rem; line-height:1.5;">{{ place.description|truncatewords:20 }}</p>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      <button class="carousel-control-prev" type="button" data-bs-target="#placesCarousel" data-bs-slide="prev">
+        <i class="fas fa-chevron-left text-white" style="font-size:1rem;"></i>
+      </button>
+      <button class="carousel-control-next" type="button" data-bs-target="#placesCarousel" data-bs-slide="next">
+        <i class="fas fa-chevron-right text-white" style="font-size:1rem;"></i>
+      </button>
+    </div>
+  </div>
+</section>
+
+<!-- ─── LOCAL STOPS COVERAGE ──────────────────────────────────────────────── -->
+<section class="py-5 bg-white">
+  <div class="container">
+    <div class="text-center mb-4">
+      <h2 class="fw-black" style="color:var(--brand-primary);">City Coverage — 20 Stops</h2>
+      <p class="text-muted">AnandBus connects all major areas of Anand district</p>
+    </div>
+    <div class="row g-2 stops-grid justify-content-center">
+      {% for code, name in anand_stops %}
+        <div class="col-auto">
+          <a href="{% url 'routes:search' %}?destination={{ code }}" class="stop-badge text-decoration-none">
+            <i class="fas fa-map-marker-alt" style="color:var(--brand-accent);font-size:0.75rem;"></i>
+            {{ name }}
+          </a>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ─── CTA SECTION ───────────────────────────────────────────────────────── -->
+{% if not user.is_authenticated %}
+<section class="py-5" style="background: linear-gradient(135deg, #1E3A5F 0%, #2980B9 100%);">
+  <div class="container text-center text-white py-3">
+    <h2 class="fw-black mb-3">Ready to Travel Smarter?</h2>
+    <p class="lead opacity-75 mb-4">Join thousands of Anand residents who book their daily bus travel with AnandBus</p>
+    <div class="d-flex gap-3 justify-content-center flex-wrap">
+      <a href="{% url 'accounts:register' %}" class="btn btn-lg px-5 fw-semibold" style="background:var(--brand-accent);color:#fff;border-radius:12px;">
+        <i class="fas fa-user-plus me-2"></i>Create Free Account
+      </a>
+      <a href="{% url 'routes:search' %}" class="btn btn-lg btn-outline-light px-5 fw-semibold" style="border-radius:12px;">
+        <i class="fas fa-search me-2"></i>Search Buses
+      </a>
+    </div>
+  </div>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let paxCount = 1;
+function changePax(delta) {
+  paxCount = Math.max(1, Math.min(6, paxCount + delta));
+  const hiddenInput = document.getElementById('paxValue');
+  const textInput = document.getElementById('paxText');
+  if (hiddenInput && textInput) {
+    hiddenInput.value = paxCount;
+    textInput.value = paxCount + (paxCount === 1 ? ' Passenger' : ' Passengers');
+  }
+}
+
+// Prefill search form from place card
+function prefillSearch(stopCode, stopName) {
+  const dest = document.getElementById('destStop');
+  if (dest) {
+    dest.value = stopCode;
+    dest.dispatchEvent(new Event('change'));
+  }
+  document.querySelector('.hero-section').scrollIntoView({behavior: 'smooth'});
+}
+
+// Swap source <-> destination & restore/persist search state
+document.addEventListener('DOMContentLoaded', function() {
+  const src = document.getElementById('sourceStop');
+  const dst = document.getElementById('destStop');
+  const dateInput = document.getElementById('travelDate');
+  const form = document.getElementById('searchForm');
+
+  // Restore state from URL params or localStorage
+  const urlParams = new URLSearchParams(window.location.search);
+  let savedState = {};
+  try {
+    savedState = JSON.parse(localStorage.getItem('anandbus_search') || '{}');
+  } catch(e) {}
+
+  const sourceVal = urlParams.get('source') || savedState.source;
+  const destVal = urlParams.get('destination') || savedState.destination;
+  const dateVal = urlParams.get('date') || savedState.date;
+  const seatsVal = parseInt(urlParams.get('seats') || savedState.seats || '1');
+
+  if (src && sourceVal && Array.from(src.options).some(o => o.value === sourceVal)) {
+    src.value = sourceVal;
+  }
+  if (dst && destVal && Array.from(dst.options).some(o => o.value === destVal)) {
+    dst.value = destVal;
+  }
+  if (dateInput && dateVal && dateInput.min) {
+    if (dateVal >= dateInput.min) {
+      dateInput.value = dateVal;
+    }
+  }
+  if (seatsVal && seatsVal > 0) {
+    paxCount = Math.min(6, Math.max(1, seatsVal));
+    const hiddenInput = document.getElementById('paxValue');
+    const textInput = document.getElementById('paxText');
+    if (hiddenInput && textInput) {
+      hiddenInput.value = paxCount;
+      textInput.value = paxCount + (paxCount === 1 ? ' Passenger' : ' Passengers');
+    }
+  }
+
+  // Prevent same stop selection
+  if (src && dst) {
+    [src, dst].forEach(el => el.addEventListener('change', () => {
+      if (src.value && src.value === dst.value) {
+        dst.value = '';
+      }
+    }));
+  }
+
+  // Save state when form is submitted
+  if (form) {
+    form.addEventListener('submit', function() {
+      try {
+        const state = {
+          source: src ? src.value : '',
+          destination: dst ? dst.value : '',
+          date: dateInput ? dateInput.value : '',
+          seats: document.getElementById('paxValue') ? document.getElementById('paxValue').value : '1'
+        };
+        localStorage.setItem('anandbus_search', JSON.stringify(state));
+      } catch(e) {}
+    });
+  }
+
+  // Animate hero stats
+  document.querySelectorAll('.stat-num').forEach(el => {
+    const target = parseInt(el.textContent);
+    let count = 0;
+    const step = Math.max(1, Math.floor(target / 30));
+    const timer = setInterval(() => {
+      count = Math.min(count + step, target);
+      el.textContent = count + (el.textContent.includes('+') ? '+' : '');
+      if (count >= target) clearInterval(timer);
+    }, 50);
+  });
+});
+</script>
+{% endblock %}

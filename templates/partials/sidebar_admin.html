@@ -1,0 +1,64 @@
+<!-- Admin Sidebar -->
+<div class="sidebar d-flex flex-column p-0" style="width:260px;min-height:100vh;background:var(--brand-primary);position:fixed;top:56px;left:0;z-index:100;overflow-y:auto;">
+  <div class="p-4 border-bottom border-secondary">
+    <div class="d-flex align-items-center gap-3">
+      <div class="rounded-circle bg-warning d-flex align-items-center justify-content-center fw-bold" style="width:42px;height:42px;color:#1E3A5F;font-size:16px;">
+        {{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}
+      </div>
+      <div>
+        <p class="mb-0 text-white fw-semibold small">{{ request.user.get_full_name }}</p>
+        <span class="badge" style="background:var(--brand-accent);font-size:10px;">SUPER ADMIN</span>
+      </div>
+    </div>
+  </div>
+  <nav class="p-3">
+    <p class="text-uppercase text-secondary small fw-semibold px-2 mb-2" style="font-size:10px;letter-spacing:1px;">Overview</p>
+    <a href="{% url 'buses:admin_dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
+      <i class="fas fa-tachometer-alt fa-fw"></i> Dashboard
+    </a>
+    <a href="{% url 'buses:revenue_report' %}" class="sidebar-link">
+      <i class="fas fa-chart-bar fa-fw"></i> Revenue Reports
+    </a>
+    <a href="{% url 'buses:export_bookings' %}" class="sidebar-link">
+      <i class="fas fa-file-excel fa-fw"></i> Export Excel
+    </a>
+
+    <p class="text-uppercase text-secondary small fw-semibold px-2 mb-2 mt-4" style="font-size:10px;letter-spacing:1px;">Fleet Management</p>
+    <a href="{% url 'buses:bus_list' %}" class="sidebar-link">
+      <i class="fas fa-bus fa-fw"></i> Buses
+    </a>
+    <a href="{% url 'buses:driver_list' %}" class="sidebar-link">
+      <i class="fas fa-id-card fa-fw"></i> Drivers
+    </a>
+
+    <p class="text-uppercase text-secondary small fw-semibold px-2 mb-2 mt-4" style="font-size:10px;letter-spacing:1px;">Operations</p>
+    <a href="{% url 'buses:route_management' %}" class="sidebar-link">
+      <i class="fas fa-route fa-fw"></i> Routes
+    </a>
+    <a href="{% url 'buses:schedule_management' %}" class="sidebar-link">
+      <i class="fas fa-calendar-alt fa-fw"></i> Schedules
+    </a>
+
+    <p class="text-uppercase text-secondary small fw-semibold px-2 mb-2 mt-4" style="font-size:10px;letter-spacing:1px;">Passes & Schemes</p>
+    <a href="{% url 'passes:admin_manage_passes' %}" class="sidebar-link">
+      <i class="fas fa-id-badge fa-fw"></i> Manage Applications
+    </a>
+    <a href="{% url 'passes:admin_add_scheme' %}" class="sidebar-link">
+      <i class="fas fa-plus-circle fa-fw"></i> Add Special Scheme
+    </a>
+
+    <p class="text-uppercase text-secondary small fw-semibold px-2 mb-2 mt-4" style="font-size:10px;letter-spacing:1px;">Users</p>
+    <a href="{% url 'buses:user_management' %}" class="sidebar-link">
+      <i class="fas fa-users fa-fw"></i> User Management
+    </a>
+    <a href="{% url 'admin:index' %}" class="sidebar-link" target="_blank">
+      <i class="fas fa-tools me-2"></i>Django Admin Panel
+    </a>
+
+    <div class="mt-4 pt-3 border-top border-secondary">
+      <a href="{% url 'accounts:logout' %}" class="sidebar-link text-danger">
+        <i class="fas fa-sign-out-alt fa-fw"></i> Logout
+      </a>
+    </div>
+  </nav>
+</div>

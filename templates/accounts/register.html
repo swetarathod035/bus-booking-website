@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Account — AnandBus{% endblock %}
+
+{% block content %}
+<div class="min-vh-100 d-flex align-items-center py-5"
+     style="background: linear-gradient(135deg, #0a1628 0%, #1E3A5F 60%, #2980B9 100%);">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-6 col-lg-5">
+        <div class="text-center mb-4">
+          <i class="fas fa-user-plus fa-3x mb-3" style="color:var(--brand-accent);"></i>
+          <h3 class="text-white fw-black">Create Account</h3>
+          <p class="text-white opacity-75 small">Join AnandBus — Free, Fast, Easy</p>
+        </div>
+        <div class="card border-0 rounded-4 shadow-lg">
+          <div class="card-body p-4">
+            <form method="POST" novalidate>
+              {% csrf_token %}
+              <div class="row g-3">
+                {% for field in form %}
+                  <div class="{% if field.name == 'username' or field.name == 'email' or field.name == 'password1' or field.name == 'password2' %}col-12{% else %}col-6{% endif %}">
+                    <label class="form-label fw-semibold small">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.errors %}
+                      <div class="invalid-feedback d-block small">{{ field.errors.0 }}</div>
+                    {% endif %}
+                    {% if field.help_text and field.name == 'password1' %}
+                      <div class="form-text small">{{ field.help_text }}</div>
+                    {% endif %}
+                  </div>
+                {% endfor %}
+              </div>
+              {% if form.non_field_errors %}
+                <div class="alert alert-danger border-0 small rounded-3 mt-3">{{ form.non_field_errors.0 }}</div>
+              {% endif %}
+              <button type="submit" class="btn w-100 py-3 rounded-3 fw-bold mt-3"
+                      style="background:linear-gradient(135deg,#FF6B35,#e55a24);color:#fff;border:none;">
+                <i class="fas fa-user-plus me-2"></i>Create Free Account
+              </button>
+            </form>
+          </div>
+        </div>
+        <p class="text-center text-white opacity-75 small mt-3">
+          Already have an account?
+          <a href="{% url 'accounts:login' %}" class="text-warning fw-semibold text-decoration-none">Sign in</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Admin Dashboard — AnandBus{% endblock %}
+
+{% block extra_css %}
+<style>
+.admin-layout { display: flex; min-height: calc(100vh - 56px); }
+.admin-content { margin-left: 260px; flex: 1; padding: 2rem; }
+.kpi-card { border: none; border-radius: 18px; overflow: hidden; transition: all 0.3s; }
+.kpi-card:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(0,0,0,0.15); }
+.kpi-card .icon-wrap { width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; }
+.chart-card { border: none; border-radius: 18px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
+.sidebar-link { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 10px; color: rgba(255,255,255,0.75); text-decoration: none; font-size: 0.875rem; transition: all 0.2s; margin-bottom: 2px; }
+.sidebar-link:hover, .sidebar-link.active { background: rgba(255,255,255,0.12); color: #fff; }
+.sidebar-link i { width: 18px; text-align: center; }
+@media (max-width: 768px) { .admin-content { margin-left: 0; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-layout">
+  {% include 'partials/sidebar_admin.html' %}
+
+  <div class="admin-content">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h3 class="fw-black mb-0" style="color:var(--brand-primary);">Dashboard</h3>
+        <small class="text-muted">{{ today|date:"l, d F Y" }}</small>
+      </div>
+      <div class="d-flex gap-2">
+        <a href="{% url 'buses:export_bookings' %}" class="btn btn-sm btn-outline-success rounded-3 fw-semibold">
+          <i class="fas fa-file-excel me-1"></i>Export Excel
+        </a>
+        <a href="{% url 'buses:bus_create' %}" class="btn btn-sm rounded-3 fw-semibold"
+           style="background:var(--brand-accent);color:#fff;border:none;">
+          <i class="fas fa-plus me-1"></i>Add Bus
+        </a>
+      </div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-xl-3">
+        <div class="card kpi-card p-4" style="background:linear-gradient(135deg,#1E3A5F,#2980B9);">
+          <div class="d-flex align-items-center gap-3">
+            <div class="icon-wrap" style="background:rgba(255,255,255,0.15);"><i class="fas fa-bus text-white fa-lg"></i></div>
+            <div><div class="fs-2 fw-black text-white">{{ total_buses }}</div><div class="text-white opacity-75 small">Active Buses</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-xl-3">
+        <div class="card kpi-card p-4" style="background:linear-gradient(135deg,#27AE60,#1abc9c);">
+          <div class="d-flex align-items-center gap-3">
+            <div class="icon-wrap" style="background:rgba(255,255,255,0.15);"><i class="fas fa-route text-white fa-lg"></i></div>
+            <div><div class="fs-2 fw-black text-white">{{ total_routes }}</div><div class="text-white opacity-75 small">Active Routes</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-xl-3">
+        <div class="card kpi-card p-4" style="background:linear-gradient(135deg,#FF6B35,#e55a24);">
+          <div class="d-flex align-items-center gap-3">
+            <div class="icon-wrap" style="background:rgba(255,255,255,0.15);"><i class="fas fa-ticket-alt text-white fa-lg"></i></div>
+            <div><div class="fs-2 fw-black text-white">{{ total_bookings }}</div><div class="text-white opacity-75 small">Confirmed Bookings</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-xl-3">
+        <div class="card kpi-card p-4" style="background:linear-gradient(135deg,#F39C12,#e67e22);">
+          <div class="d-flex align-items-center gap-3">
+            <div class="icon-wrap" style="background:rgba(255,255,255,0.15);"><i class="fas fa-rupee-sign text-white fa-lg"></i></div>
+            <div><div class="fs-2 fw-black text-white">₹{{ monthly_revenue|floatformat:0 }}</div><div class="text-white opacity-75 small">Monthly Revenue</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row g-4 mb-4">
+      <div class="col-lg-8">
+        <div class="card chart-card p-4">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold mb-0" style="color:var(--brand-primary);">Revenue — Last 7 Days</h6>
+            <span class="badge" style="background:#eef6ff;color:#1E3A5F;">Today: ₹{{ today_revenue|floatformat:0 }}</span>
+          </div>
+          <canvas id="revenueChart" height="100"></canvas>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="card chart-card p-4">
+          <h6 class="fw-bold mb-3" style="color:var(--brand-primary);">Booking Status</h6>
+          <canvas id="pieChart" height="200"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick stats row -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <div class="card chart-card p-4 text-center">
+          <i class="fas fa-calendar-day fa-2x mb-2" style="color:var(--brand-secondary);"></i>
+          <h4 class="fw-black">{{ today_schedules }}</h4>
+          <small class="text-muted">Today's Schedules</small>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card chart-card p-4 text-center">
+          <i class="fas fa-rupee-sign fa-2x mb-2" style="color:var(--brand-accent);"></i>
+          <h4 class="fw-black">₹{{ today_revenue|floatformat:0 }}</h4>
+          <small class="text-muted">Today's Revenue</small>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card chart-card p-4 text-center">
+          <a href="{% url 'buses:revenue_report' %}" class="text-decoration-none">
+            <i class="fas fa-chart-line fa-2x mb-2" style="color:#27AE60;"></i>
+            <h4 class="fw-black text-dark">View Full Report</h4>
+            <small class="text-muted">Revenue analytics →</small>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Bookings -->
+    <div class="card chart-card p-4">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="fw-bold mb-0" style="color:var(--brand-primary);">Recent Confirmed Bookings</h6>
+        <span class="badge" style="background:#eef6ff;color:#1E3A5F;">Latest {{ recent_bookings|length }}</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead style="background:#f8f9fa;font-size:0.8rem;">
+            <tr><th>Booking ID</th><th>Passenger</th><th>Route</th><th>Date</th><th>Amount</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            {% for b in recent_bookings %}
+            <tr>
+              <td><code class="small">{{ b.short_id }}</code></td>
+              <td>{{ b.passenger.get_full_name|default:b.passenger.username }}</td>
+              <td>{{ b.schedule.route.route_number }}</td>
+              <td class="small">{{ b.schedule.travel_date }}</td>
+              <td class="fw-semibold">₹{{ b.total_amount }}</td>
+              <td><span class="badge bg-success rounded-pill">{{ b.status }}</span></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-center text-muted py-4">No confirmed bookings yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Revenue Bar Chart
+new Chart(document.getElementById('revenueChart'), {
+  type: 'bar',
+  data: {
+    labels: {{ revenue_labels|safe }},
+    datasets: [{
+      label: 'Revenue (₹)',
+      data: {{ revenue_chart|safe }},
+      backgroundColor: 'rgba(41, 128, 185, 0.7)',
+      borderColor: '#1E3A5F',
+      borderWidth: 2,
+      borderRadius: 8,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { grid: { color: '#f0f0f0' }, ticks: { callback: v => '₹' + v } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+
+// Booking Status Pie
+new Chart(document.getElementById('pieChart'), {
+  type: 'doughnut',
+  data: {
+    labels: {{ pie_labels|safe }},
+    datasets: [{
+      data: {{ pie_data|safe }},
+      backgroundColor: ['#1E3A5F', '#27AE60', '#FF6B35', '#F39C12', '#9B59B6', '#E74C3C'],
+      borderWidth: 2, borderColor: '#fff',
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } }
+  }
+});
+</script>
+{% endblock %}

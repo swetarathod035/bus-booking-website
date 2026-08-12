@@ -1,0 +1,454 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Live Bus Tracking — AnandBus{% endblock %}
+
+{% block extra_css %}
+<!-- Leaflet & Leaflet Routing Machine CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css">
+
+<style>
+  #trackingMap {
+    height: 520px;
+    border-radius: 20px;
+    z-index: 1;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+  }
+  /* Clean UI: Hide default Leaflet Routing Machine text instruction container */
+  .leaflet-routing-container {
+    display: none !important;
+  }
+  .info-card {
+    border: none;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+    background: #ffffff;
+  }
+  .status-live {
+    animation: pulseLive 1.5s ease-in-out infinite;
+  }
+  @keyframes pulseLive {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.05); }
+  }
+
+  /* Custom Animated Live Bus Marker */
+  .live-bus-marker {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .bus-icon-circle {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #FF6B35 0%, #E55A24 100%);
+    border: 3px solid #ffffff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 16px rgba(255, 107, 53, 0.5);
+    z-index: 2;
+  }
+  .live-badge {
+    position: absolute;
+    top: -10px;
+    background: #E11D48;
+    color: #ffffff;
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(225, 29, 72, 0.4);
+    z-index: 3;
+    white-space: nowrap;
+  }
+  .pulse-ring {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: rgba(255, 107, 53, 0.4);
+    animation: pulseRing 1.8s ease-out infinite;
+    z-index: 1;
+  }
+  @keyframes pulseRing {
+    0% { transform: scale(0.6); opacity: 1; }
+    100% { transform: scale(1.6); opacity: 0; }
+  }
+
+  /* Bus Stand Marker Styling */
+  .stop-marker-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-size: 0.8rem;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+  }
+  .start-stop-marker { background: #10B981; }
+  .intermediate-stop-marker { background: #3B82F6; }
+  .dest-stop-marker { background: #EF4444; }
+
+  /* Timeline & Progress Styling */
+  .progress-track {
+    height: 8px;
+    border-radius: 4px;
+    background: #e2e8f0;
+  }
+  .progress-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #10B981, #FF6B35);
+    transition: width 0.3s ease;
+  }
+  .stop-timeline-node {
+    border-radius: 12px;
+    padding: 8px 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    transition: all 0.3s ease;
+  }
+  .stop-timeline-node.active {
+    background: #1E3A5F;
+    color: #ffffff;
+    border-color: #1E3A5F;
+    box-shadow: 0 4px 12px rgba(30,58,95,0.2);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 px-4">
+  <!-- Header Title -->
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+    <div>
+      <h3 class="fw-bold mb-1" style="color:var(--brand-primary);">
+        <span class="badge bg-danger me-2 status-live" style="font-size:0.75rem;padding:6px 12px;">● LIVE TRACKING</span>
+        {{ schedule.route.route_name|default:"Anand Central → Vallabh Vidyanagar Express" }}
+      </h3>
+      <div class="text-muted small">
+        Bus No: <strong>{{ schedule.bus.bus_number|default:"GJ-18-B-1008" }}</strong> ({{ schedule.bus.bus_name|default:"GSRTC Electric Express" }}) · Journey Date: {{ schedule.travel_date|default:"Today" }}
+      </div>
+    </div>
+
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge bg-success-subtle text-success border border-success px-3 py-2 rounded-pill fw-bold fs-6">
+        <i class="fas fa-satellite-dish me-1"></i>GPS Live Sync Active
+      </span>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- LEFT: Leaflet Map Column -->
+    <div class="col-lg-8">
+      <div id="trackingMap"></div>
+
+      <!-- Route Progress & Timeline Card -->
+      <div class="card info-card p-4 mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="fw-bold text-dark"><i class="fas fa-route me-2 text-primary"></i>Journey Progress</span>
+          <span class="fw-bold text-primary fs-5" id="progressPct">0%</span>
+        </div>
+
+        <div class="progress-track mb-4">
+          <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+        </div>
+
+        <!-- Stop Timeline Cards -->
+        <h6 class="fw-bold text-muted small text-uppercase mb-3">Intermediate Bus Stops & Timings</h6>
+        <div id="stopTimeline" class="row g-2">
+          <!-- Populated by JavaScript -->
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Live Status Sidebar -->
+    <div class="col-lg-4">
+      <!-- Live Metrics Card -->
+      <div class="card info-card p-4 mb-4">
+        <h5 class="fw-bold mb-4" style="color:var(--brand-primary);">
+          <i class="fas fa-tachometer-alt me-2" style="color:var(--brand-accent);"></i>Live Journey Metrics
+        </h5>
+
+        <div class="row g-3 mb-3">
+          <div class="col-6">
+            <div class="p-3 rounded-4 text-center" style="background:#f8fafc; border:1px solid #e2e8f0;">
+              <small class="text-muted d-block text-uppercase fw-semibold" style="font-size:0.72rem;">Estimated ETA</small>
+              <div class="fw-bold fs-2 text-primary mt-1" id="etaDisplay">--</div>
+              <small class="text-muted">minutes</small>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="p-3 rounded-4 text-center" style="background:#f8fafc; border:1px solid #e2e8f0;">
+              <small class="text-muted d-block text-uppercase fw-semibold" style="font-size:0.72rem;">Live Speed</small>
+              <div class="fw-bold fs-2 text-success mt-1" id="speedDisplay">38</div>
+              <small class="text-muted">km/h</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-3 rounded-4 mb-3" style="background:#eef6ff; border:1px solid #d0e1fd;">
+          <small class="text-primary d-block fw-bold text-uppercase" style="font-size:0.72rem;">Current Bus Location</small>
+          <div class="fw-bold text-dark fs-6 mt-1" id="currentLocationDisplay">Calculating live GPS position...</div>
+        </div>
+
+        <div class="p-3 rounded-4 mb-3" style="background:#f0fdf4; border:1px solid #bbf7d0;">
+          <small class="text-success d-block fw-bold text-uppercase" style="font-size:0.72rem;">Next Approaching Stop</small>
+          <div class="fw-bold text-dark fs-6 mt-1" id="nextStopDisplay">Mogri Phata / Karamsad</div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center p-3 rounded-3" style="background:#f8fafc; border:1px solid #e2e8f0;">
+          <span class="text-muted small fw-semibold">Distance Remaining</span>
+          <span class="fw-bold text-dark fs-6" id="distRemaining">-- km</span>
+        </div>
+      </div>
+
+      <!-- Bus & Driver Information Card -->
+      <div class="card info-card p-4">
+        <h6 class="fw-bold mb-3" style="color:var(--brand-primary);"><i class="fas fa-bus-simple me-2"></i>Bus Information</h6>
+        <div class="d-flex align-items-center gap-3 p-3 rounded-3" style="background:#f8fafc;">
+          <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width:44px;height:44px;min-width:44px;">
+            <i class="fas fa-user-gear fs-5"></i>
+          </div>
+          <div>
+            <div class="fw-bold text-dark small">Driver: Rajesh Kumar Parmar</div>
+            <div class="text-muted" style="font-size:0.78rem;">Route: Anand Central ➔ VV Nagar Circle</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Leaflet & Leaflet Routing Machine Scripts -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // ─── 1. Route Waypoints (Support Dynamic Django Context or Fallback Anand Route) ───
+  const djangoStopsData = {{ stops_json|default:'null'|safe }};
+
+  const fallbackWaypointsData = [
+    { name: 'Anand Central Bus Stand (GSRTC)', lat: 22.5560, lng: 72.9510, type: 'start', eta: '0 min' },
+    { name: 'Karamsad Cross Roads', lat: 22.5640, lng: 72.9350, type: 'intermediate', eta: '8 min' },
+    { name: 'Mogri Square', lat: 22.5585, lng: 72.9280, type: 'intermediate', eta: '14 min' },
+    { name: 'Vallabh Vidyanagar Circle (V.V. Nagar)', lat: 22.5525, lng: 72.9242, type: 'destination', eta: '20 min' }
+  ];
+
+  let waypointsData = fallbackWaypointsData;
+  if (djangoStopsData && Array.isArray(djangoStopsData) && djangoStopsData.length > 0) {
+    waypointsData = djangoStopsData.map((s, idx) => ({
+      name: s.name,
+      lat: s.lat,
+      lng: s.lng,
+      type: idx === 0 ? 'start' : (idx === djangoStopsData.length - 1 ? 'destination' : 'intermediate'),
+      eta: (s.eta_minutes || (idx * 8)) + ' min'
+    }));
+  }
+
+  // Initialize Map
+  const map = L.map('trackingMap', { zoomControl: true }).setView([22.5560, 72.9400], 14);
+
+  // Add OpenStreetMap Tile Layer
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19
+  }).addTo(map);
+
+  // ─── 2. Interactive Bus Stand Custom Markers ──────────────────────────────
+  waypointsData.forEach((stop) => {
+    let iconClass = 'intermediate-stop-marker';
+    let iconSymbol = '<i class="fas fa-bus-simple"></i>';
+
+    if (stop.type === 'start') {
+      iconClass = 'start-stop-marker';
+      iconSymbol = '<i class="fas fa-flag-checkered"></i>';
+    } else if (stop.type === 'destination') {
+      iconClass = 'dest-stop-marker';
+      iconSymbol = '<i class="fas fa-location-dot"></i>';
+    }
+
+    const customStopIcon = L.divIcon({
+      className: '',
+      html: `<div class="stop-marker-icon ${iconClass}">${iconSymbol}</div>`,
+      iconSize: [32, 32],
+      iconAnchor: [16, 16]
+    });
+
+    const marker = L.marker([stop.lat, stop.lng], { icon: customStopIcon }).addTo(map);
+    marker.bindPopup(`
+      <div style="font-family:sans-serif; padding:4px;">
+        <strong style="color:#1E3A5F; font-size:0.95rem;">${stop.name}</strong><br>
+        <span style="color:#666; font-size:0.82rem;"><i class="fas fa-clock me-1 text-primary"></i>ETA: ${stop.eta}</span>
+      </div>
+    `);
+  });
+
+  // Render Stop Timeline UI in Sidebar
+  const timelineEl = document.getElementById('stopTimeline');
+  timelineEl.innerHTML = '';
+  waypointsData.forEach((stop, idx) => {
+    const col = document.createElement('div');
+    col.className = 'col-6 col-md-3';
+    col.innerHTML = `
+      <div class="stop-timeline-node ${idx === 0 ? 'active' : ''}" id="timeline-node-${idx}">
+        <div class="d-flex align-items-center justify-content-between mb-1">
+          <small class="fw-bold" style="font-size:0.75rem;">Stop ${idx + 1}</small>
+          <span class="badge ${idx === 0 ? 'bg-success' : 'bg-light text-dark border'}" style="font-size:0.65rem;">${stop.eta}</span>
+        </div>
+        <div class="fw-bold small text-truncate">${stop.name}</div>
+      </div>
+    `;
+    timelineEl.appendChild(col);
+  });
+
+  // ─── 3. Animated Custom Bus Icon Marker ──────────────────────────────────
+  const animatedBusIcon = L.divIcon({
+    className: '',
+    html: `
+      <div class="live-bus-marker">
+        <div class="live-badge">LIVE ●</div>
+        <div class="bus-icon-circle">
+          <i class="fas fa-bus text-white fs-6"></i>
+        </div>
+        <div class="pulse-ring"></div>
+      </div>
+    `,
+    iconSize: [48, 48],
+    iconAnchor: [24, 24]
+  });
+
+  const busMarker = L.marker([waypointsData[0].lat, waypointsData[0].lng], {
+    icon: animatedBusIcon,
+    zIndexOffset: 1000
+  }).addTo(map);
+
+  busMarker.bindPopup('<strong>AnandBus Express</strong><br>Status: En Route in Live Traffic');
+
+  // ─── 4. Leaflet Routing Machine (OSRM) Road-following Route Calculation ───
+  const routingWaypoints = waypointsData.map(w => L.latLng(w.lat, w.lng));
+
+  const routingControl = L.Routing.control({
+    waypoints: routingWaypoints,
+    routeWhileDragging: false,
+    addWaypoints: false,
+    draggableWaypoints: false,
+    fitSelectedRoutes: true,
+    show: false, // Hides instruction box in control panel
+    createMarker: function() { return null; }, // Suppress default LRM pins (using our custom bus stand icons!)
+    lineOptions: {
+      styles: [
+        { color: '#1E3A5F', opacity: 0.85, weight: 6 },
+        { color: '#38BDF8', opacity: 1, weight: 2 }
+      ]
+    }
+  }).addTo(map);
+
+  // ─── 5. Smooth Live Animation & Live Status Sidebar Sync ─────────────────
+  let roadCoordinates = [];
+  let animIndex = 0;
+  let animProgress = 0;
+  const animSpeedSteps = 15; // Smoothness factor between road waypoints
+
+  routingControl.on('routesfound', function(e) {
+    const routes = e.routes;
+    roadCoordinates = routes[0].coordinates; // Exact road path polyline points calculated by OSRM!
+
+    if (roadCoordinates && roadCoordinates.length > 0) {
+      animateBusAlongRoad();
+    }
+  });
+
+  function animateBusAlongRoad() {
+    if (roadCoordinates.length === 0) return;
+
+    if (animIndex >= roadCoordinates.length - 1) {
+      animIndex = 0; // Loop simulation once destination is reached
+      animProgress = 0;
+    }
+
+    const currentPt = roadCoordinates[animIndex];
+    const nextPt = roadCoordinates[animIndex + 1];
+
+    // Linear interpolation between consecutive road points
+    const lat = currentPt.lat + (nextPt.lat - currentPt.lat) * (animProgress / animSpeedSteps);
+    const lng = currentPt.lng + (nextPt.lng - currentPt.lng) * (animProgress / animSpeedSteps);
+
+    const newLatLng = L.latLng(lat, lng);
+    busMarker.setLatLng(newLatLng);
+
+    // Calculate percentage progress along actual road
+    const totalPoints = roadCoordinates.length;
+    const progressPct = Math.min(100, Math.round((animIndex / totalPoints) * 100));
+
+    // Update Journey Progress Bar (%)
+    document.getElementById('progressBar').style.width = progressPct + '%';
+    document.getElementById('progressPct').textContent = progressPct + '%';
+
+    // Calculate Remaining Distance (km) & Dynamic ETA (mins)
+    let remainingDistanceMeters = 0;
+    for (let i = animIndex; i < roadCoordinates.length - 1; i++) {
+      remainingDistanceMeters += roadCoordinates[i].distanceTo(roadCoordinates[i + 1]);
+    }
+    const remainingKm = remainingDistanceMeters / 1000;
+    const estimatedMins = Math.max(1, Math.round((remainingKm / 35) * 60)); // Avg 35 km/h speed
+
+    document.getElementById('etaDisplay').textContent = estimatedMins;
+    document.getElementById('distRemaining').textContent = remainingKm.toFixed(1) + ' km';
+
+    // Update Current Location & Next Stop in Sidebar
+    if (progressPct < 25) {
+      document.getElementById('currentLocationDisplay').textContent = 'Departed ' + waypointsData[0].name;
+      document.getElementById('nextStopDisplay').textContent = waypointsData[1] ? waypointsData[1].name : 'En Route';
+      updateActiveTimelineNode(0);
+    } else if (progressPct < 60) {
+      document.getElementById('currentLocationDisplay').textContent = 'Near ' + (waypointsData[1] ? waypointsData[1].name : 'Intermediate Stop');
+      document.getElementById('nextStopDisplay').textContent = waypointsData[2] ? waypointsData[2].name : 'En Route';
+      updateActiveTimelineNode(1);
+    } else if (progressPct < 90) {
+      document.getElementById('currentLocationDisplay').textContent = 'Approaching ' + (waypointsData[2] ? waypointsData[2].name : 'Next Stop');
+      document.getElementById('nextStopDisplay').textContent = waypointsData[waypointsData.length - 1].name;
+      updateActiveTimelineNode(2);
+    } else {
+      document.getElementById('currentLocationDisplay').textContent = 'Arriving at ' + waypointsData[waypointsData.length - 1].name;
+      document.getElementById('nextStopDisplay').textContent = 'Destination Terminal';
+      updateActiveTimelineNode(waypointsData.length - 1);
+    }
+
+    // Step Increment
+    animProgress++;
+    if (animProgress > animSpeedSteps) {
+      animProgress = 0;
+      animIndex++;
+    }
+
+    setTimeout(animateBusAlongRoad, 120); // Smooth animation tick rate
+  }
+
+  function updateActiveTimelineNode(nodeIndex) {
+    waypointsData.forEach((_, idx) => {
+      const node = document.getElementById(`timeline-node-${idx}`);
+      if (node) {
+        if (idx === nodeIndex) {
+          node.classList.add('active');
+        } else {
+          node.classList.remove('active');
+        }
+      }
+    });
+  }
+});
+</script>
+{% endblock %}

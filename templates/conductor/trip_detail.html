@@ -1,0 +1,187 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Trip Detail — Conductor{% endblock %}
+
+{% block extra_css %}
+<style>
+.seat { width:42px;height:42px;border-radius:8px;border:2px solid #dee2e6;background:#f8f9fa;
+        display:inline-flex;align-items:center;justify-content:center;font-size:0.68rem;font-weight:700;cursor:pointer;
+        margin:2px;transition:all 0.2s;box-shadow:0 2px 0 #b0b7c3; }
+.seat.available { background:#d4f8e0;border-color:#27AE60;color:#1a7a40; }
+.seat.booked { background:#f8d7da;border-color:#dc3545;color:#721c24;cursor:default; }
+.seat.ladies { background:#fddbe8;border-color:#e91e8c;color:#8b0047;cursor:default; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 px-4">
+  <div class="d-flex align-items-center gap-3 mb-4">
+    <a href="{% url 'conductor:dashboard' %}" class="btn btn-sm btn-outline-secondary rounded-3">
+      <i class="fas fa-arrow-left me-1"></i>Back
+    </a>
+    <div>
+      <h4 class="fw-black mb-0" style="color:var(--brand-primary);">{{ schedule.route.route_name }}</h4>
+      <small class="text-muted">{{ schedule.travel_date }} · Dep: {{ schedule.departure_time|time:"H:i" }} · {{ schedule.bus.bus_name }}</small>
+    </div>
+    <div class="ms-auto d-flex gap-2">
+      <a href="{% url 'tracking:live' schedule.id %}" class="btn btn-sm rounded-3" style="background:#FF6B35;color:#fff;border:none;">
+        <i class="fas fa-map-marker-alt me-1"></i>Live Track
+      </a>
+      <a href="{% url 'conductor:issue_offline_ticket' schedule.id %}" class="btn btn-sm rounded-3" style="background:#1E3A5F;color:#fff;border:none;">
+        <i class="fas fa-ticket-alt me-1"></i>Issue Offline Ticket
+      </a>
+      <a href="{% url 'conductor:passenger_manifest' schedule.id %}" class="btn btn-sm btn-outline-secondary rounded-3">
+        <i class="fas fa-list me-1"></i>Manifest
+      </a>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Trip Status Control -->
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+        <h6 class="fw-bold mb-3" style="color:var(--brand-primary);"><i class="fas fa-traffic-light me-2"></i>Update Trip Status</h6>
+        <div class="mb-3">
+          <select class="form-select" id="tripStatus">
+            {% for val, label in status_choices %}
+              <option value="{{ val }}" {% if val == schedule.status %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <select class="form-select" id="currentStop">
+            <option value="">Select current stop</option>
+            {% for rs in route_stops %}
+              <option value="{{ rs.stop.id }}" {% if schedule.current_stop_id == rs.stop.id %}selected{% endif %}>
+                {{ rs.stop.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <input type="number" class="form-control" id="delayMinutes" placeholder="Delay (minutes)" min="0" value="{{ schedule.delay_minutes }}">
+        </div>
+        <div class="mb-3">
+          <textarea class="form-control" id="statusMessage" rows="2" placeholder="Status message (optional)"></textarea>
+        </div>
+        <button class="btn w-100 rounded-3 fw-semibold" onclick="updateStatus()"
+                style="background:#1E3A5F;color:#fff;border:none;">
+          <i class="fas fa-save me-2"></i>Update Status
+        </button>
+      </div>
+
+      <!-- Trip Log -->
+      <div class="card border-0 shadow-sm rounded-4 p-4">
+        <h6 class="fw-bold mb-3" style="color:var(--brand-primary);"><i class="fas fa-history me-2"></i>Recent Events</h6>
+        {% for log in trip_logs %}
+          <div class="d-flex gap-2 mb-2 pb-2 border-bottom">
+            <div class="mt-1"><span class="badge rounded-circle p-1" style="background:#eef6ff;"><i class="fas fa-circle" style="color:#2980B9;font-size:0.5rem;"></i></span></div>
+            <div>
+              <div class="small fw-semibold">{{ log.get_event_type_display }}</div>
+              <div class="text-muted" style="font-size:0.72rem;">{{ log.timestamp|timesince }} ago · {{ log.conductor.get_full_name }}</div>
+              {% if log.message %}<div class="text-muted small">{{ log.message }}</div>{% endif %}
+            </div>
+          </div>
+        {% empty %}
+          <p class="text-muted small">No events logged yet.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Seat Map -->
+    <div class="col-md-8">
+      <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="fw-bold mb-0" style="color:var(--brand-primary);"><i class="fas fa-chair me-2"></i>Seat Status</h6>
+          <div class="d-flex gap-3">
+            <small><span class="seat available" style="width:16px;height:16px;display:inline-block;margin:0;"></span> Available</small>
+            <small><span class="seat booked" style="width:16px;height:16px;display:inline-block;margin:0;"></span> Booked</small>
+            <small><span class="seat ladies" style="width:16px;height:16px;display:inline-block;margin:0;"></span> Ladies</small>
+          </div>
+        </div>
+        <div style="overflow-x:auto;">
+          {% for row_num, row_seats in seat_grid.items %}
+          <div class="mb-1 d-flex align-items-center gap-1 flex-wrap">
+            <span class="text-muted me-1" style="font-size:0.65rem;min-width:16px;">{{ row_num }}</span>
+            {% for col, seat in row_seats.items %}
+              {% if col == 'C' %}<div style="width:20px;"></div>{% endif %}
+              <div class="seat
+                {% if seat.status == 'AVAILABLE' %}available
+                {% elif seat.status == 'BOOKED' %}booked
+                {% elif seat.status == 'RESERVED_LADIES' %}ladies
+                {% else %}{% endif %}"
+                title="Seat {{ seat.seat_number }} — {{ seat.get_status_display }}">
+                {{ seat.seat_number }}
+              </div>
+            {% endfor %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Booked passengers -->
+      <div class="card border-0 shadow-sm rounded-4 p-4">
+        <h6 class="fw-bold mb-3" style="color:var(--brand-primary);">
+          <i class="fas fa-users me-2"></i>Passenger Bookings ({{ bookings|length }})
+        </h6>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle">
+            <thead style="background:#f8f9fa;font-size:0.78rem;">
+              <tr><th>Name</th><th>Seats</th><th>Boarding</th><th>Alighting</th><th>Ticket</th><th>Verified</th></tr>
+            </thead>
+            <tbody>
+              {% for booking in bookings %}
+              <tr>
+                <td>{{ booking.passenger.get_full_name }}</td>
+                <td>{% for s in booking.seats.all %}{{ s.seat_number }}{% if not forloop.last %},{% endif %}{% endfor %}</td>
+                <td class="small">{{ booking.boarding_stop }}</td>
+                <td class="small">{{ booking.alighting_stop }}</td>
+                <td><code class="small">{{ booking.short_id }}</code></td>
+                <td>
+                  {% if booking.ticket.is_verified %}
+                    <span class="badge bg-success rounded-pill">✓</span>
+                  {% else %}
+                    <span class="badge bg-secondary rounded-pill">—</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="6" class="text-center text-muted py-3">No confirmed bookings for this trip.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updateStatus() {
+  const status = document.getElementById('tripStatus').value;
+  const stop_id = document.getElementById('currentStop').value || null;
+  const delay = parseInt(document.getElementById('delayMinutes').value) || 0;
+  const message = document.getElementById('statusMessage').value;
+
+  fetch('{% url "conductor:update_trip_status" schedule.id %}', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+    body: JSON.stringify({status, stop_id, delay_minutes: delay, message})
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      const badge = `<span class="badge bg-warning text-dark">${data.status_display}</span>`;
+      document.title = `Trip — ${data.status_display}`;
+      alert(`✅ Status updated to: ${data.status_display}`);
+      location.reload();
+    } else {
+      alert('Error: ' + (data.error || 'Unknown error'));
+    }
+  });
+}
+</script>
+{% endblock %}

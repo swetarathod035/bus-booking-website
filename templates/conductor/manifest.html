@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+
+{% block title %}Passenger Manifest{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex align-items-center gap-3 mb-4">
+    <a href="{% url 'conductor:trip_detail' schedule.id %}" class="btn btn-sm btn-outline-secondary rounded-3">
+      <i class="fas fa-arrow-left me-1"></i>Back
+    </a>
+    <div>
+      <h4 class="fw-bold mb-0" style="color:var(--brand-primary);">Passenger Manifest</h4>
+      <small class="text-muted">{{ schedule.route.route_name }} · {{ schedule.travel_date }} · {{ schedule.departure_time|time:"H:i" }}</small>
+    </div>
+    <div class="ms-auto">
+      <button onclick="window.print()" class="btn btn-sm btn-outline-primary rounded-3">
+        <i class="fas fa-print me-1"></i>Print
+      </button>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead style="background:#1E3A5F;color:#fff;">
+            <tr>
+              <th class="py-3 ps-4">#</th>
+              <th>Passenger</th>
+              <th>Seats</th>
+              <th>Boarding</th>
+              <th>Alighting</th>
+              <th>Ticket</th>
+              <th>Amount</th>
+              <th>Verified</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for booking in bookings %}
+            <tr>
+              <td class="ps-4">{{ forloop.counter }}</td>
+              <td>
+                <div class="fw-semibold">{{ booking.passenger.get_full_name }}</div>
+                <small class="text-muted">{{ booking.passenger.phone|default:'—' }}</small>
+              </td>
+              <td>
+                {% for seat in booking.seats.all %}
+                  <span class="badge rounded-2" style="background:#eef6ff;color:#1E3A5F;">{{ seat.seat_number }}</span>
+                {% endfor %}
+              </td>
+              <td class="small">{{ booking.boarding_stop }}</td>
+              <td class="small">{{ booking.alighting_stop }}</td>
+              <td><code class="small">{{ booking.short_id }}</code></td>
+              <td class="fw-semibold">₹{{ booking.total_amount }}</td>
+              <td>
+                {% if booking.ticket.is_verified %}
+                  <span class="badge bg-success rounded-pill">Verified</span>
+                {% else %}
+                  <span class="badge bg-secondary rounded-pill">Pending</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8" class="text-center text-muted py-5">No confirmed bookings for this trip.</td></tr>
+            {% endfor %}
+          </tbody>
+          {% if bookings %}
+          <tfoot style="background:#f8f9fa;">
+            <tr>
+              <td colspan="6" class="ps-4 fw-bold">Total Passengers: {{ bookings|length }}</td>
+              <td class="fw-bold">₹{% for b in bookings %}{{ b.total_amount }}{% endfor %}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+          {% endif %}
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

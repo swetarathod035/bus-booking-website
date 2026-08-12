@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}Verify Ticket — Conductor{% endblock %}
+
+{% block content %}
+<div class="container py-5" style="max-width:640px;">
+  <div class="text-center mb-4">
+    <i class="fas fa-qrcode fa-4x mb-3" style="color:var(--brand-primary);"></i>
+    <h3 class="fw-bold" style="color:var(--brand-primary);">Verify Passenger Ticket</h3>
+    <p class="text-muted">Enter ticket number or scan QR code to verify passenger</p>
+  </div>
+
+  <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+    <form method="POST">
+      {% csrf_token %}
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Ticket Number</label>
+        <input type="text" name="ticket_number" class="form-control form-control-lg rounded-3 text-uppercase"
+               placeholder="e.g. AB-20260808-ABCD1234" autocomplete="off" style="font-family:monospace;">
+      </div>
+      <p class="text-center text-muted small my-2">— OR —</p>
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Booking ID (last 8 chars)</label>
+        <input type="text" name="booking_id" class="form-control form-control-lg rounded-3 text-uppercase"
+               placeholder="e.g. ABCD1234" autocomplete="off" style="font-family:monospace;">
+      </div>
+      <button type="submit" class="btn w-100 py-3 rounded-3 fw-bold"
+              style="background:linear-gradient(135deg,#1E3A5F,#2980B9);color:#fff;border:none;font-size:1rem;">
+        <i class="fas fa-search me-2"></i>Verify Ticket
+      </button>
+    </form>
+  </div>
+
+  {% if ticket and verified %}
+  <div class="card border-0 shadow-sm rounded-4 p-4 border-start border-success border-4">
+    <div class="text-center mb-3">
+      <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-2"
+           style="width:64px;height:64px;background:#d4f8e0;">
+        <i class="fas fa-check fa-2x" style="color:#27AE60;"></i>
+      </div>
+      <h5 class="fw-bold text-success">Valid Ticket!</h5>
+    </div>
+    <div class="row g-2">
+      <div class="col-6"><small class="text-muted">Ticket #</small><div class="fw-bold">{{ ticket.ticket_number }}</div></div>
+      <div class="col-6"><small class="text-muted">Passenger</small><div class="fw-bold">{{ booking.passenger_name }}</div></div>
+      <div class="col-6"><small class="text-muted">Route</small><div class="fw-semibold">{{ booking.schedule.route.route_name }}</div></div>
+      <div class="col-6"><small class="text-muted">Date</small><div class="fw-semibold">{{ booking.schedule.travel_date }}</div></div>
+      <div class="col-6"><small class="text-muted">Seats</small><div class="fw-semibold">{% for s in booking.seats.all %}{{ s.seat_number }}{% if not forloop.last %}, {% endif %}{% endfor %}</div></div>
+      <div class="col-6"><small class="text-muted">Boarding</small><div class="fw-semibold">{{ booking.boarding_stop }}</div></div>
+    </div>
+  </div>
+  {% elif error %}
+  <div class="alert alert-danger border-0 rounded-4"><i class="fas fa-times-circle me-2"></i>{{ error }}</div>
+  {% endif %}
+</div>
+{% endblock %}

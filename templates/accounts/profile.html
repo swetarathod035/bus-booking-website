@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block title %}My Profile — AnandBus{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width:720px;">
+  <h3 class="fw-bold mb-4" style="color:var(--brand-primary);"><i class="fas fa-user-cog me-2"></i>My Profile</h3>
+  <div class="card border-0 shadow-sm rounded-4 p-4">
+    <form method="POST" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="row g-3">
+        {% for field in form %}
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}<div class="invalid-feedback d-block small">{{ field.errors.0 }}</div>{% endif %}
+          </div>
+        {% endfor %}
+      </div>
+      <button type="submit" class="btn rounded-3 fw-semibold px-4 mt-3"
+              style="background:#1E3A5F;color:#fff;border:none;">
+        <i class="fas fa-save me-2"></i>Save Changes
+      </button>
+      <a href="{% url 'accounts:change_password' %}" class="btn btn-outline-secondary rounded-3 ms-2 mt-3">
+        <i class="fas fa-lock me-2"></i>Change Password
+      </a>
+    </form>
+  </div>
+</div>
+{% endblock %}

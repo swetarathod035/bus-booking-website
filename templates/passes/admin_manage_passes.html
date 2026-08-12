@@ -1,0 +1,219 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Manage Bus Passes & Schemes — Admin Portal{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 px-4">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+    <div>
+      <h3 class="fw-bold mb-1 text-primary"><i class="fas fa-user-shield me-2"></i>Bus Pass & Scheme Management</h3>
+      <p class="text-muted small mb-0">Review student/passenger pass applications, approve valid passes, and launch new schemes</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'passes:admin_add_scheme' %}" class="btn btn-warning fw-bold rounded-pill shadow-sm">
+        <i class="fas fa-plus-circle me-1"></i>Add Special Scheme
+      </a>
+      <a href="{% url 'buses:admin_dashboard' %}" class="btn btn-outline-secondary rounded-pill fw-semibold">
+        <i class="fas fa-arrow-left me-1"></i>Back to Admin Dashboard
+      </a>
+    </div>
+  </div>
+
+  <!-- Metric Stat Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card border-0 rounded-4 shadow-sm p-4 bg-white">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <span class="text-muted small text-uppercase fw-bold">Total Pass Applications</span>
+            <h2 class="fw-extrabold text-primary mb-0 mt-1">{{ total_passes_count }}</h2>
+          </div>
+          <div class="rounded-circle bg-primary-subtle text-primary p-3">
+            <i class="fas fa-id-card fa-2x"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card border-0 rounded-4 shadow-sm p-4 bg-white">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <span class="text-muted small text-uppercase fw-bold">Pending Approvals</span>
+            <h2 class="fw-extrabold text-warning mb-0 mt-1">{{ pending_passes_count }}</h2>
+          </div>
+          <div class="rounded-circle bg-warning-subtle text-warning p-3">
+            <i class="fas fa-clock fa-2x"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card border-0 rounded-4 shadow-sm p-4 bg-white">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <span class="text-muted small text-uppercase fw-bold">Active Special Schemes</span>
+            <h2 class="fw-extrabold text-success mb-0 mt-1">{{ total_schemes_count }}</h2>
+          </div>
+          <div class="rounded-circle bg-success-subtle text-success p-3">
+            <i class="fas fa-gift fa-2x"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Applications Table Card -->
+  <div class="card border-0 rounded-4 shadow-sm p-4 bg-white">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+      <h5 class="fw-bold mb-0 text-dark">Submitted Bus Pass Applications</h5>
+      
+      <!-- Status Filter -->
+      <div class="btn-group rounded-pill" role="group">
+        <a href="?status=ALL" class="btn btn-sm {% if status_filter == 'ALL' %}btn-primary{% else %}btn-outline-primary{% endif %}">All</a>
+        <a href="?status=PENDING" class="btn btn-sm {% if status_filter == 'PENDING' %}btn-warning text-dark{% else %}btn-outline-warning{% endif %}">Pending</a>
+        <a href="?status=APPROVED" class="btn btn-sm {% if status_filter == 'APPROVED' %}btn-success{% else %}btn-outline-success{% endif %}">Approved</a>
+        <a href="?status=REJECTED" class="btn btn-sm {% if status_filter == 'REJECTED' %}btn-danger{% else %}btn-outline-danger{% endif %}">Rejected</a>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Pass ID</th>
+            <th>Applicant</th>
+            <th>Type</th>
+            <th>Route</th>
+            <th>Duration</th>
+            <th>Fare</th>
+            <th>Status</th>
+            <th>Applied Date</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for bpass in passes %}
+          <tr>
+            <td><strong class="text-primary">{{ bpass.pass_number }}</strong></td>
+            <td>
+              <div class="fw-bold text-dark">{{ bpass.applicant_name }}</div>
+              <small class="text-muted">{{ bpass.email }} | {{ bpass.phone }}</small>
+              {% if bpass.college_name %}
+              <div class="small text-info"><i class="fas fa-graduation-cap me-1"></i>{{ bpass.college_name }}</div>
+              {% endif %}
+            </td>
+            <td>
+              <span class="badge {% if bpass.applicant_type == 'STUDENT' %}bg-info text-dark{% else %}bg-secondary{% endif %}">
+                {{ bpass.get_applicant_type_display }}
+              </span>
+            </td>
+            <td>{{ bpass.route.route_name|default:"All City Routes" }}</td>
+            <td>{{ bpass.duration_months }} Month(s)</td>
+            <td><strong class="text-success">₹{{ bpass.total_fare }}</strong></td>
+            <td>
+              {% if bpass.status == 'APPROVED' %}
+                <span class="badge bg-success">APPROVED</span>
+              {% elif bpass.status == 'REJECTED' %}
+                <span class="badge bg-danger">REJECTED</span>
+              {% else %}
+                <span class="badge bg-warning text-dark">PENDING</span>
+              {% endif %}
+            </td>
+            <td><small class="text-muted">{{ bpass.applied_at|date:"d M Y, H:i" }}</small></td>
+            <td class="text-end">
+              <form method="post" class="d-inline-block">
+                {% csrf_token %}
+                <input type="hidden" name="action_type" value="BUS_PASS">
+                <input type="hidden" name="item_id" value="{{ bpass.id }}">
+                
+                {% if bpass.status != 'APPROVED' %}
+                <button type="submit" name="new_status" value="APPROVED" class="btn btn-success btn-sm rounded-pill me-1">
+                  <i class="fas fa-check me-1"></i>Approve
+                </button>
+                {% endif %}
+                
+                {% if bpass.status != 'REJECTED' %}
+                <button type="submit" name="new_status" value="REJECTED" class="btn btn-outline-danger btn-sm rounded-pill">
+                  <i class="fas fa-times me-1"></i>Reject
+                </button>
+                {% endif %}
+              </form>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="9" class="text-center py-4 text-muted">No pass applications found for this filter.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Scheme Applications Section -->
+  <div class="card border-0 rounded-4 shadow-sm p-4 bg-white mt-4">
+    <h5 class="fw-bold mb-4 text-dark">Special Scheme Applications</h5>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Application Ref</th>
+            <th>Scheme Title</th>
+            <th>Applicant</th>
+            <th>Contact</th>
+            <th>Route</th>
+            <th>Status</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sapp in scheme_apps %}
+          <tr>
+            <td><strong class="text-warning">{{ sapp.application_number }}</strong></td>
+            <td><span class="fw-bold text-dark">{{ sapp.scheme.title }}</span></td>
+            <td>{{ sapp.applicant_name }}</td>
+            <td><small>{{ sapp.email }}<br>{{ sapp.phone }}</small></td>
+            <td>{{ sapp.preferred_route.route_name|default:"General Route" }}</td>
+            <td>
+              {% if sapp.status == 'APPROVED' %}
+                <span class="badge bg-success">Approved</span>
+              {% elif sapp.status == 'REJECTED' %}
+                <span class="badge bg-danger">Rejected</span>
+              {% else %}
+                <span class="badge bg-warning text-dark">Pending</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              <form method="post" class="d-inline-block">
+                {% csrf_token %}
+                <input type="hidden" name="action_type" value="SCHEME_APP">
+                <input type="hidden" name="item_id" value="{{ sapp.id }}">
+                
+                {% if sapp.status != 'APPROVED' %}
+                <button type="submit" name="new_status" value="APPROVED" class="btn btn-success btn-sm rounded-pill me-1">
+                  <i class="fas fa-check me-1"></i>Approve
+                </button>
+                {% endif %}
+
+                {% if sapp.status != 'REJECTED' %}
+                <button type="submit" name="new_status" value="REJECTED" class="btn btn-outline-danger btn-sm rounded-pill">
+                  <i class="fas fa-times me-1"></i>Reject
+                </button>
+                {% endif %}
+              </form>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-center py-4 text-muted">No scheme applications received yet.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

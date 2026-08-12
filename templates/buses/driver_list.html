@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}Manage Drivers{% endblock %}
+{% block extra_css %}<style>.admin-layout{display:flex;min-height:calc(100vh - 60px);}.admin-content{margin-left:260px;flex:1;padding:2rem;}.sidebar-link{display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:10px;color:rgba(255,255,255,0.75);text-decoration:none;font-size:0.875rem;transition:all 0.2s;margin-bottom:2px;}.sidebar-link:hover{background:rgba(255,255,255,0.12);color:#fff;}</style>{% endblock %}
+{% block content %}
+<div class="admin-layout">
+  {% include 'partials/sidebar_admin.html' %}
+  <div class="admin-content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h4 class="fw-black mb-0" style="color:var(--brand-primary);">Drivers</h4>
+      <a href="{% url 'buses:driver_create' %}" class="btn rounded-3 fw-semibold" style="background:var(--brand-accent);color:#fff;border:none;"><i class="fas fa-plus me-2"></i>Add Driver</a>
+    </div>
+    <div class="card border-0 shadow-sm rounded-4">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead style="background:#f8f9fa;"><tr><th class="py-3 ps-4">Name</th><th>Emp ID</th><th>Phone</th><th>Bus</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody>
+            {% for d in drivers %}
+            <tr>
+              <td class="ps-4 fw-semibold">{{ d.name }}</td>
+              <td><code>{{ d.employee_id }}</code></td>
+              <td>{{ d.phone }}</td>
+              <td>{{ d.assigned_bus|default:'—' }}</td>
+              <td><span class="badge rounded-pill {% if d.status == 'AVAILABLE' %}bg-success{% elif d.status == 'ON_DUTY' %}bg-primary{% else %}bg-secondary{% endif %}">{{ d.get_status_display }}</span></td>
+              <td><a href="{% url 'buses:driver_edit' d.pk %}" class="btn btn-sm btn-outline-primary rounded-2"><i class="fas fa-edit"></i></a></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-center py-5 text-muted">No drivers found.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Pass & Scheme Applications — AnandBus{% endblock %}
+
+{% block extra_css %}
+<style>
+  .digital-pass-card {
+    background: linear-gradient(135deg, #1E3A5F 0%, #0F172A 100%);
+    color: #ffffff;
+    border-radius: 20px;
+    padding: 1.8rem;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+    position: relative;
+    overflow: hidden;
+  }
+  .digital-pass-card::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 200px;
+    height: 200px;
+    background: rgba(255,107,53,0.15);
+    border-radius: 50%;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+      <h3 class="fw-extrabold text-dark mb-1"><i class="fas fa-id-card text-primary me-2"></i>My Pass & Scheme Applications</h3>
+      <p class="text-muted small">Track approval status and view your digital bus passes</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'passes:student_pass' %}" class="btn btn-outline-primary rounded-pill btn-sm fw-semibold">
+        <i class="fas fa-plus me-1"></i>Apply Student Pass
+      </a>
+      <a href="{% url 'passes:passenger_pass' %}" class="btn btn-outline-success rounded-pill btn-sm fw-semibold">
+        <i class="fas fa-plus me-1"></i>Apply Commuter Pass
+      </a>
+    </div>
+  </div>
+
+  <!-- Bus Passes Section -->
+  <h5 class="fw-bold text-primary mb-3"><i class="fas fa-ticket-alt me-2"></i>Bus Passes</h5>
+  <div class="row g-4 mb-5">
+    {% for bpass in user_passes %}
+    <div class="col-lg-6">
+      <div class="digital-pass-card">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <span class="badge bg-warning text-dark fw-bold mb-1">{{ bpass.get_applicant_type_display }}</span>
+            <div class="fw-bold fs-5 text-white">{{ bpass.pass_number }}</div>
+          </div>
+          {% if bpass.status == 'APPROVED' %}
+            <span class="badge bg-success px-3 py-2 fs-6"><i class="fas fa-check-circle me-1"></i>APPROVED</span>
+          {% elif bpass.status == 'REJECTED' %}
+            <span class="badge bg-danger px-3 py-2 fs-6"><i class="fas fa-times-circle me-1"></i>REJECTED</span>
+          {% else %}
+            <span class="badge bg-warning text-dark px-3 py-2 fs-6"><i class="fas fa-clock me-1"></i>PENDING VERIFICATION</span>
+          {% endif %}
+        </div>
+
+        <div class="row g-2 small text-light opacity-90 mb-3">
+          <div class="col-6">
+            <span class="d-block text-uppercase" style="font-size:0.7rem;opacity:0.7;">Applicant Name</span>
+            <strong class="text-white">{{ bpass.applicant_name }}</strong>
+          </div>
+          <div class="col-6">
+            <span class="d-block text-uppercase" style="font-size:0.7rem;opacity:0.7;">Route</span>
+            <strong class="text-white">{{ bpass.route.route_name|default:"All City Routes" }}</strong>
+          </div>
+          <div class="col-6 mt-2">
+            <span class="d-block text-uppercase" style="font-size:0.7rem;opacity:0.7;">Valid From</span>
+            <strong class="text-white">{{ bpass.valid_from|default:"Pending Approval" }}</strong>
+          </div>
+          <div class="col-6 mt-2">
+            <span class="d-block text-uppercase" style="font-size:0.7rem;opacity:0.7;">Valid Until</span>
+            <strong class="text-white">{{ bpass.valid_to|default:"Pending Approval" }}</strong>
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center pt-3 border-top border-secondary">
+          <span class="small text-light">Total Fare: <strong class="text-warning fs-5">₹{{ bpass.total_fare }}</strong></span>
+          <span class="small text-light opacity-75">Applied: {{ bpass.applied_at|date:"d M Y" }}</span>
+        </div>
+      </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+      <div class="p-4 text-center bg-white rounded-4 shadow-sm border">
+        <i class="fas fa-id-card fa-2x text-muted mb-2"></i>
+        <p class="text-muted mb-0">No bus pass applications found. Apply for a Student or Passenger Pass today!</p>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Special Scheme Applications Section -->
+  <h5 class="fw-bold text-warning mb-3"><i class="fas fa-gift me-2"></i>Special Scheme Applications</h5>
+  <div class="row g-4">
+    {% for sapp in user_schemes %}
+    <div class="col-lg-6">
+      <div class="card border-0 rounded-4 shadow-sm p-4 bg-white">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <div>
+            <span class="badge bg-warning text-dark fw-bold mb-1">{{ sapp.scheme.badge_text }}</span>
+            <h6 class="fw-bold text-dark mb-0">{{ sapp.scheme.title }}</h6>
+            <small class="text-muted">Ref: {{ sapp.application_number }}</small>
+          </div>
+          {% if sapp.status == 'APPROVED' %}
+            <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Approved</span>
+          {% elif sapp.status == 'REJECTED' %}
+            <span class="badge bg-danger"><i class="fas fa-times-circle me-1"></i>Rejected</span>
+          {% else %}
+            <span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>Pending</span>
+          {% endif %}
+        </div>
+        <div class="small text-muted mt-2">
+          Applicant: <strong>{{ sapp.applicant_name }}</strong> · Preferred Route: <strong>{{ sapp.preferred_route.route_name|default:"General Route" }}</strong>
+        </div>
+      </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+      <div class="p-4 text-center bg-white rounded-4 shadow-sm border">
+        <i class="fas fa-gift fa-2x text-muted mb-2"></i>
+        <p class="text-muted mb-0">No scheme applications found. Check out active <a href="{% url 'passes:special_schemes' %}">Special Schemes</a> to apply!</p>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

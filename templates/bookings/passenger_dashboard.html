@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Dashboard — AnandBus{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <!-- Header -->
+  <div class="d-flex align-items-center gap-3 mb-4">
+    <div class="rounded-circle d-flex align-items-center justify-content-center fw-black text-white"
+         style="width:60px;height:60px;background:linear-gradient(135deg,#1E3A5F,#2980B9);font-size:1.3rem;">
+      {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
+    </div>
+    <div>
+      <h3 class="mb-0 fw-black" style="color:var(--brand-primary);">Welcome, {{ user.first_name }}!</h3>
+      <small class="text-muted"><i class="fas fa-envelope me-1"></i>{{ user.email }}</small>
+    </div>
+    <a href="{% url 'routes:search' %}" class="btn ms-auto rounded-3 fw-semibold"
+       style="background:linear-gradient(135deg,#FF6B35,#e55a24);color:#fff;border:none;">
+      <i class="fas fa-plus me-2"></i>Book New Trip
+    </a>
+  </div>
+
+  <!-- Stats -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card border-0 rounded-4 text-center p-3" style="background:linear-gradient(135deg,#1E3A5F,#2980B9);color:#fff;">
+        <div class="fs-2 fw-black">{{ upcoming_bookings|length }}</div>
+        <small>Upcoming Trips</small>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 rounded-4 text-center p-3" style="background:linear-gradient(135deg,#27AE60,#1abc9c);color:#fff;">
+        <div class="fs-2 fw-black">{{ past_bookings|length }}</div>
+        <small>Past Trips</small>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 rounded-4 text-center p-3" style="background:linear-gradient(135deg,#F39C12,#e67e22);color:#fff;">
+        <div class="fs-2 fw-black">{{ user.passenger_profile.loyalty_points|default:0 }}</div>
+        <small>Loyalty Points</small>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 rounded-4 text-center p-3" style="background:linear-gradient(135deg,#9B59B6,#8e44ad);color:#fff;">
+        <div class="fs-2 fw-black">✓</div>
+        <small>Verified Account</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upcoming Bookings -->
+  <h5 class="fw-bold mb-3" style="color:var(--brand-primary);"><i class="fas fa-calendar-check me-2"></i>Upcoming Trips</h5>
+  {% if upcoming_bookings %}
+    {% for booking in upcoming_bookings %}
+    <div class="card border-0 shadow-sm rounded-4 mb-3">
+      <div class="card-body p-4">
+        <div class="row align-items-center g-3">
+          <div class="col-md-4">
+            <div class="d-flex align-items-center gap-2">
+              <div class="rounded-3 d-flex align-items-center justify-content-center"
+                   style="width:44px;height:44px;background:#eef6ff;">
+                <i class="fas fa-bus" style="color:#1E3A5F;"></i>
+              </div>
+              <div>
+                <div class="fw-bold small">{{ booking.schedule.route.route_name }}</div>
+                <small class="badge bg-warning text-dark me-1">PNR: {{ booking.short_id }}</small>
+                <small class="text-muted">{{ booking.schedule.bus.bus_name }}</small>
+              </div>
+
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="fw-semibold">{{ booking.schedule.travel_date|date:"D, d M Y" }}</div>
+            <small class="text-muted">{{ booking.schedule.departure_time|time:"H:i" }} departure</small>
+          </div>
+          <div class="col-md-2">
+            <div class="fw-semibold">Seats: {% for s in booking.seats.all %}{{ s.seat_number }}{% if not forloop.last %},{% endif %}{% endfor %}</div>
+            <small class="text-muted">₹{{ booking.total_amount }}</small>
+          </div>
+          <div class="col-md-3 text-md-end">
+            <span class="badge rounded-pill mb-2
+              {% if booking.status == 'CONFIRMED' %}bg-success
+              {% elif booking.status == 'PENDING' %}bg-warning text-dark
+              {% else %}bg-secondary{% endif %}">
+              {{ booking.status }}
+            </span>
+            <div class="d-flex gap-2 justify-content-md-end flex-wrap">
+              <a href="{% url 'bookings:booking_detail' booking.booking_id %}" class="btn btn-sm btn-outline-primary rounded-2">
+                <i class="fas fa-eye me-1"></i>View
+              </a>
+              {% if booking.status == 'CONFIRMED' %}
+                <a href="{% url 'bookings:download_ticket' booking.booking_id %}" class="btn btn-sm btn-outline-success rounded-2">
+                  <i class="fas fa-download me-1"></i>PDF
+                </a>
+                <a href="{% url 'tracking:live' booking.schedule.id %}" class="btn btn-sm rounded-2"
+                   style="background:#FF6B35;color:#fff;border:none;">
+                  <i class="fas fa-map-marker-alt me-1"></i>Track
+                </a>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="text-center py-4 text-muted">
+      <i class="fas fa-ticket-alt fa-3x mb-3"></i>
+      <p>No upcoming trips. <a href="{% url 'routes:search' %}">Book your first bus!</a></p>
+    </div>
+  {% endif %}
+
+  <!-- Past Bookings -->
+  {% if past_bookings %}
+    <h5 class="fw-bold mb-3 mt-4" style="color:var(--brand-primary);"><i class="fas fa-history me-2"></i>Past Trips</h5>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle rounded-4 overflow-hidden" style="border-collapse:separate;border-spacing:0;">
+        <thead style="background:#f8f9fa;">
+          <tr>
+            <th class="py-3 ps-3">Booking ID</th>
+            <th>Route</th>
+            <th>Date</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for booking in past_bookings %}
+          <tr>
+            <td class="ps-3 fw-mono">{{ booking.short_id }}</td>
+            <td>{{ booking.schedule.route.route_name|truncatechars:30 }}</td>
+            <td>{{ booking.schedule.travel_date|date:"d M Y" }}</td>
+            <td>₹{{ booking.total_amount }}</td>
+            <td>
+              <span class="badge rounded-pill
+                {% if booking.status == 'COMPLETED' %}bg-success
+                {% elif booking.status == 'CANCELLED' %}bg-danger
+                {% elif booking.status == 'REFUNDED' %}bg-info
+                {% else %}bg-secondary{% endif %}">
+                {{ booking.status }}
+              </span>
+            </td>
+            <td>
+              <a href="{% url 'bookings:booking_detail' booking.booking_id %}" class="btn btn-sm btn-outline-secondary rounded-2">
+                <i class="fas fa-eye"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

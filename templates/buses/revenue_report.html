@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block title %}Revenue Report{% endblock %}
+{% block extra_css %}<style>.admin-layout{display:flex;min-height:calc(100vh - 60px);}.admin-content{margin-left:260px;flex:1;padding:2rem;}.sidebar-link{display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:10px;color:rgba(255,255,255,0.75);text-decoration:none;font-size:0.875rem;transition:all 0.2s;margin-bottom:2px;}.sidebar-link:hover{background:rgba(255,255,255,0.12);color:#fff;}</style>{% endblock %}
+{% block content %}
+<div class="admin-layout">
+  {% include 'partials/sidebar_admin.html' %}
+  <div class="admin-content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h4 class="fw-black mb-0" style="color:var(--brand-primary);">Revenue Report</h4>
+      <div class="d-flex gap-2">
+        <a href="{% url 'buses:export_bookings' %}" class="btn btn-sm btn-outline-success rounded-3"><i class="fas fa-file-excel me-1"></i>Export Excel</a>
+      </div>
+    </div>
+
+    <!-- Total -->
+    <div class="card border-0 rounded-4 p-4 mb-4" style="background:linear-gradient(135deg,#1E3A5F,#2980B9);">
+      <div class="text-white">
+        <div class="small opacity-75 text-uppercase mb-1">Total Revenue (Last 100 payments)</div>
+        <div class="display-5 fw-black">₹{{ total|floatformat:2 }}</div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead style="background:#f8f9fa;">
+            <tr><th class="py-3 ps-4">Payment ID</th><th>Passenger</th><th>Route</th><th>Gateway</th><th>Method</th><th>Amount</th><th>Status</th><th>Date</th></tr>
+          </thead>
+          <tbody>
+            {% for payment in payments %}
+            <tr>
+              <td class="ps-4"><code class="small">{{ payment.gateway_payment_id|truncatechars:16|default:'—' }}</code></td>
+              <td>{{ payment.booking.passenger.get_full_name|default:payment.booking.passenger.username }}</td>
+              <td class="small">{{ payment.booking.schedule.route.route_number }}</td>
+              <td><span class="badge rounded-2" style="background:#eef6ff;color:#1E3A5F;">{{ payment.get_gateway_display }}</span></td>
+              <td>{{ payment.get_method_display|default:'—' }}</td>
+              <td class="fw-semibold">₹{{ payment.amount }}</td>
+              <td><span class="badge rounded-pill {% if payment.status == 'SUCCESS' %}bg-success{% elif payment.status == 'REFUNDED' %}bg-info{% else %}bg-secondary{% endif %}">{{ payment.get_status_display }}</span></td>
+              <td class="small">{{ payment.paid_at|date:"d M Y H:i"|default:'—' }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8" class="text-center py-5 text-muted">No payments found.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,918 @@
+{% extends 'base.html' %}
+{% load static booking_extras %}
+
+{% block title %}Select Seats — {{ schedule.route }}{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ─── Seat Selection Styles ───────────────────────────────────────── */
+.bus-container {
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+/* Bus body visual */
+.bus-body {
+  background: linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%);
+  border: 3px solid #1E3A5F;
+  border-radius: 20px;
+  position: relative;
+  padding: 20px;
+}
+/* GSRTC Driver Cabin Visual */
+.gsrtc-driver-cabin {
+  background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+  border-left: 6px solid #FF6B35;
+  border-radius: 16px;
+  color: white;
+  padding: 14px 20px;
+}
+/* Individual seat */
+.seat {
+  width: 46px; height: 46px;
+  border-radius: 10px 10px 6px 6px;
+  border: 2px solid #dee2e6;
+  background: #ffffff;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem; font-weight: 700;
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+  position: relative;
+  user-select: none;
+  box-shadow: 0 4px 0 #CBD5E1, 0 5px 6px rgba(0,0,0,0.08);
+}
+.seat::before {
+  content: '';
+  position: absolute; top: 5px; left: 5px; right: 5px; height: 6px;
+  background: rgba(255,255,255,0.6);
+  border-radius: 4px 4px 0 0;
+}
+
+/* 🎨 STRICT SEAT COLOR SCHEME REQUESTED BY USER:
+   - White: Available (#FFFFFF)
+   - Grey: Selected (#6C757D)
+   - Blue: Booking Confirmed / Booked (#0D6EFD)
+   - Pink: Ladies Reserved (#EC4899)
+*/
+.seat.available {
+  background: #FFFFFF !important;
+  border-color: #CBD5E1 !important;
+  color: #1E293B !important;
+  box-shadow: 0 4px 0 #94A3B8, 0 5px 6px rgba(0,0,0,0.08);
+}
+.seat.available:hover {
+  transform: translateY(-3px) scale(1.05);
+  border-color: #64748B !important;
+  box-shadow: 0 8px 0 #64748B, 0 10px 16px rgba(0,0,0,0.12);
+}
+.seat.selected {
+  background: #6C757D !important;
+  border-color: #495057 !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 0 #343A40, 0 5px 6px rgba(0,0,0,0.2);
+  transform: translateY(-2px);
+}
+.seat.booked {
+  background: #0D6EFD !important;
+  border-color: #0B5ED7 !important;
+  color: #FFFFFF !important;
+  cursor: not-allowed;
+  box-shadow: 0 2px 0 #0A58CA, 0 3px 5px rgba(0,0,0,0.1);
+}
+.seat.ladies {
+  background: #EC4899 !important;
+  border-color: #DB2777 !important;
+  color: #FFFFFF !important;
+  cursor: not-allowed;
+  box-shadow: 0 2px 0 #BE185D;
+}
+.seat.disabled-seat { background: #E2E8F0 !important; border-color: #94A3B8; color: #64748B; cursor: not-allowed; }
+.seat.blocked { background: #E2E8F0 !important; border-color: #94A3B8; color: #64748B; cursor: not-allowed; }
+
+/* Aisle gap */
+.aisle-gap { width: 30px; }
+
+/* Legend */
+.legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; }
+.legend-box { width: 22px; height: 22px; border-radius: 5px; border: 2px solid; }
+
+/* Fare summary panel */
+.fare-panel { position: sticky; top: 80px; }
+.fare-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 0.88rem; }
+.fare-row:last-child { border-bottom: none; font-weight: 700; font-size: 1rem; color: var(--brand-primary); }
+
+/* 3D WebGL Canvas Container */
+#bus3dCanvasContainer {
+  width: 100%;
+  height: 380px;
+  background: radial-gradient(circle at center, #1E293B 0%, #0F172A 100%);
+  border-radius: 20px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+}
+#bus3dCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.controls-overlay {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 10;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+</style>
+
+<!-- Load Three.js & OrbitControls from CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row g-4">
+
+    <!-- ─── LEFT: Seat Map & 3D Viewer ─────────────────────────────────────────── -->
+    <div class="col-lg-8">
+      <div class="bus-container">
+        
+        <!-- View Toggle & Passenger Badge Header -->
+        <div class="p-3 bg-white border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div class="btn-group p-1 bg-light rounded-pill border">
+            <button class="btn btn-sm rounded-pill px-4 fw-bold active btn-primary" id="btnView3D" onclick="switchViewMode('3d')">
+              <i class="fas fa-cube me-1"></i>3D Bus View
+            </button>
+            <button class="btn btn-sm rounded-pill px-4 fw-bold btn-light text-dark" id="btnView2D" onclick="switchViewMode('2d')">
+              <i class="fas fa-th me-1"></i>2D Seat Layout
+            </button>
+          </div>
+          <span class="badge rounded-pill px-3 py-2 fs-6 shadow-sm" id="paxSeatBadge" style="background:#1E3A5F; color:#fff;">
+            0 Seats Selected
+          </span>
+        </div>
+
+        <!-- 3D INTERACTIVE BUS VIEWER CONTAINER -->
+        <div id="bus3dSection" class="p-3">
+          <div id="bus3dCanvasContainer">
+            <div class="controls-overlay">
+              <div class="d-flex flex-wrap gap-1">
+                <button class="btn btn-sm btn-dark bg-opacity-75 text-white border-secondary rounded-3" onclick="reset3DCamera()" title="Reset Camera View"><i class="fas fa-sync-alt me-1"></i>Reset</button>
+                <button class="btn btn-sm btn-dark bg-opacity-75 text-white border-secondary rounded-3" onclick="set3DCameraView('front')">Front</button>
+                <button class="btn btn-sm btn-dark bg-opacity-75 text-white border-secondary rounded-3" onclick="set3DCameraView('rear')">Rear</button>
+                <button class="btn btn-sm btn-dark bg-opacity-75 text-white border-secondary rounded-3" onclick="set3DCameraView('side')">Side</button>
+                <button class="btn btn-sm btn-dark bg-opacity-75 text-white border-secondary rounded-3" onclick="set3DCameraView('top')">Top</button>
+                <button class="btn btn-sm btn-dark bg-opacity-75 text-white border-secondary rounded-3" onclick="set3DCameraView('interior')"><i class="fas fa-door-open me-1"></i>Interior</button>
+              </div>
+              <div class="badge bg-dark bg-opacity-75 text-warning px-3 py-2 rounded-pill shadow-sm border border-secondary">
+                <i class="fas fa-mouse me-1"></i>360° Drag / Scroll to Zoom
+              </div>
+            </div>
+            <canvas id="bus3dCanvas"></canvas>
+          </div>
+        </div>
+
+        <!-- 2D SEAT MAP SECTION -->
+        <div id="bus2dSection" class="bus-body" style="box-sizing: border-box; max-width: 100%;">
+          
+          <!-- GSRTC Realistic Driver Cabin -->
+          <div class="gsrtc-driver-cabin mb-4">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+              <div class="d-flex align-items-center gap-3">
+                <div class="rounded-circle p-2 bg-warning text-dark d-flex align-items-center justify-content-center shadow-sm" style="width: 42px; height: 42px;">
+                  <i class="fas fa-steering-wheel fa-lg"></i>
+                </div>
+                <div>
+                  <div class="fw-bold fs-6">GSRTC Express Cabin Layout</div>
+                  <small class="text-white-50">Driver Seat (Right Side) & Front Door Entry (Left Side)</small>
+                </div>
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-danger rounded-pill px-3 py-2 fs-7"><i class="fas fa-door-open me-1"></i>Front Door Entrance</span>
+                <span class="badge bg-secondary rounded-pill px-3 py-2 fs-7"><i class="fas fa-user-shield me-1"></i>Driver Area</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Color Legend Bar -->
+          <div class="seat-legend-bar mb-4">
+            <div class="legend-item"><div class="legend-box" style="background:#FFFFFF;border-color:#CBD5E1;"></div><span>Available (White)</span></div>
+            <div class="legend-item"><div class="legend-box" style="background:#6C757D;border-color:#495057;"></div><span>Selected (Grey)</span></div>
+            <div class="legend-item"><div class="legend-box" style="background:#0D6EFD;border-color:#0B5ED7;"></div><span>Booking Confirmed (Blue)</span></div>
+            <div class="legend-item"><div class="legend-box" style="background:#EC4899;border-color:#DB2777;"></div><span>Ladies Reserved (Pink)</span></div>
+          </div>
+
+          <!-- Responsive Seat Map Container -->
+          <div class="seat-map-wrapper">
+            <!-- Column headers -->
+            <div class="d-flex align-items-center justify-content-center mb-2 gap-1" style="min-width:280px;">
+              <div style="width:46px;text-align:center;font-size:0.7rem;font-weight:700;color:#666;">A</div>
+              <div style="width:46px;text-align:center;font-size:0.7rem;font-weight:700;color:#666;">B</div>
+              <div class="aisle-gap"></div>
+              <div style="width:46px;text-align:center;font-size:0.7rem;font-weight:700;color:#666;">C</div>
+              <div class="aisle-gap"></div>
+              <div style="width:46px;text-align:center;font-size:0.7rem;font-weight:700;color:#666;">D</div>
+              <div style="width:46px;text-align:center;font-size:0.7rem;font-weight:700;color:#666;">E</div>
+            </div>
+
+            <!-- Seat rows -->
+            <div id="seatMap" style="min-width:280px;">
+              {% for row_num, row_seats in seat_grid.items %}
+              <div class="d-flex align-items-center justify-content-center mb-2 gap-1">
+                <!-- Row number -->
+                <div style="width:20px;font-size:0.7rem;color:#aaa;text-align:right;margin-right:4px;">{{ row_num }}</div>
+
+                {% for col in "ABCDE" %}
+                  {% if col == 'C' %}
+                    <div class="aisle-gap d-flex align-items-center justify-content-center">
+                      <span style="font-size:0.6rem;color:#ccc;writing-mode:vertical-rl;">AISLE</span>
+                    </div>
+                  {% elif col == 'B' or col == 'D' %}
+                    <!-- Extra small gap between A-B and D-E -->
+                  {% endif %}
+
+                  {% if row_seats|get_item:col %}
+                    {% with seat=row_seats|get_item:col %}
+                    <div class="seat
+                      {% if seat.status == 'AVAILABLE' %}available
+                      {% elif seat.status == 'BOOKED' %}booked
+                      {% elif seat.status == 'RESERVED_LADIES' %}ladies
+                      {% elif seat.status == 'RESERVED_DISABLED' %}disabled-seat
+                      {% elif seat.status == 'BLOCKED' %}blocked
+                      {% else %}available{% endif %}"
+                      data-seat-id="{{ seat.id }}"
+                      data-seat-number="{{ seat.seat_number }}"
+                      data-seat-status="{{ seat.status }}"
+                      data-price-multiplier="{{ seat.price_multiplier }}"
+                      onclick="toggleSeat(this)"
+                      title="Seat {{ seat.seat_number }} — {{ seat.get_status_display }}">
+                      {{ seat.seat_number }}
+                    </div>
+                    {% endwith %}
+                  {% else %}
+                    <div style="width:46px;height:46px;"></div>
+                  {% endif %}
+                {% endfor %}
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <!-- 3D Selected Seat Preview -->
+          <div id="seat3DPreview" class="seat-3d-preview mt-4 d-none text-white">
+            <h6 class="fw-bold mb-3"><i class="fas fa-couch me-2"></i>Your Selected Seats — 3D View</h6>
+            <div id="selected3DSeats" class="d-flex flex-wrap gap-3">
+              <!-- populated by JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── RIGHT: Booking Summary ─────────────────────────────────────────── -->
+    <div class="col-lg-4">
+      <div class="fare-panel" style="box-sizing: border-box; width: 100%;">
+
+        <!-- Journey details -->
+        <div class="card border-0 shadow-sm rounded-4 mb-3 journey-details-card">
+          <div class="card-body p-4" style="box-sizing: border-box; width: 100%;">
+            <h6 class="fw-bold mb-3" style="color:var(--brand-primary);"><i class="fas fa-route me-2"></i>Journey Details</h6>
+            <div class="d-flex justify-content-between align-items-center mb-3 text-nowrap gap-2">
+              <div class="text-center overflow-hidden" style="max-width: 42%;">
+                <div class="fw-bold text-truncate">{{ schedule.departure_time|time:"H:i" }}</div>
+                <small class="text-muted text-truncate d-block" title="{{ schedule.route.source }}">{{ schedule.route.source }}</small>
+              </div>
+              <div class="text-center flex-shrink-0">
+                <i class="fas fa-arrow-right text-muted"></i>
+                <div><small class="text-muted" style="font-size:0.7rem;">{{ schedule.route.distance_km }}km</small></div>
+              </div>
+              <div class="text-center overflow-hidden" style="max-width: 42%;">
+                <div class="fw-bold text-truncate">{{ schedule.arrival_time|time:"H:i" }}</div>
+                <small class="text-muted text-truncate d-block" title="{{ schedule.route.destination }}">{{ schedule.route.destination }}</small>
+              </div>
+            </div>
+
+            <!-- Boarding / Alighting -->
+            <div class="mb-2">
+              <label class="form-label small fw-semibold">Board At</label>
+              <select class="form-select form-select-sm select-truncated w-100" id="boardingStop" style="box-sizing: border-box;">
+                {% for rs in route_stops %}
+                  <option value="{{ rs.stop.code }}" {% if rs.stop.code == boarding_code %}selected{% endif %}>
+                    {{ rs.stop.name }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Alight At</label>
+              <select class="form-select form-select-sm select-truncated w-100" id="alightingStop" style="box-sizing: border-box;">
+                {% for rs in route_stops %}
+                  <option value="{{ rs.stop.code }}" {% if rs.stop.code == alighting_code %}selected{% endif %}>
+                    {{ rs.stop.name }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Fare Panel -->
+        <div class="card border-0 shadow-sm rounded-4 mb-3">
+          <div class="card-body p-4">
+            <h6 class="fw-bold mb-3" style="color:var(--brand-primary);"><i class="fas fa-receipt me-2"></i>Fare Breakdown</h6>
+            <div id="selectedSeatsInfo" class="mb-3 p-2 rounded-3" style="background:#f8f9fa;min-height:40px;">
+              <small class="text-muted" id="noSeatMsg">Select seats from the bus map</small>
+              <div id="seatsList" class="d-flex flex-wrap gap-1"></div>
+            </div>
+            <div class="fare-row"><span>Base Fare</span><span id="baseFare">₹0.00</span></div>
+            <div class="fare-row"><span>GST (5%)</span><span id="taxAmt">₹0.00</span></div>
+            <div class="fare-row"><span>Convenience Fee</span><span id="convFee">₹0.00</span></div>
+            <div class="fare-row"><span>Discount</span><span id="discount">-₹0.00</span></div>
+            <div class="fare-row" style="background:#eef6ff;border-radius:8px;padding:10px;margin-top:8px;">
+              <span>Total Payable</span><span id="totalAmt">₹0.00</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Book Button -->
+        <button class="btn w-100 py-3 fw-bold rounded-4 text-white" id="proceedBtn"
+          style="background:linear-gradient(135deg,#FF6B35,#e55a24);border:none;font-size:1rem;opacity:0.5;cursor:not-allowed;"
+          disabled onclick="proceedToBooking()">
+          <i class="fas fa-user-edit me-2"></i>Enter Passenger Details — <span id="btnTotal">₹0</span>
+        </button>
+        <p class="text-center mt-2" style="font-size:0.75rem;color:#888;">
+          <i class="fas fa-shield-alt me-1"></i>Step 1 of 3 · Seat Selection
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const BASE_FARE = {{ base_fare }};
+const SCHEDULE_ID = {{ schedule.id }};
+const REQUIRED_SEATS = parseInt("{{ num_seats|default:1 }}") || 1;
+const MAX_SEATS = Math.min(REQUIRED_SEATS, {{ schedule.available_seats }});
+const TAX_RATE = 0.05;
+const CONVENIENCE_FEE_PER_SEAT = 5;
+
+let selectedSeats = [];
+let fareData = {};
+
+function toggleSeat(el) {
+  const status = el.dataset.seatStatus;
+  if (['BOOKED', 'RESERVED_LADIES', 'RESERVED_DISABLED', 'BLOCKED'].includes(status)) return;
+
+  const seatId = el.dataset.seatId;
+  const seatNum = el.dataset.seatNumber;
+  const priceMulti = parseFloat(el.dataset.priceMultiplier) || 1.0;
+
+  if (el.classList.contains('selected')) {
+    // Deselect
+    el.classList.remove('selected');
+    el.classList.add('available');
+    selectedSeats = selectedSeats.filter(s => String(s.id) !== String(seatId));
+  } else {
+    if (selectedSeats.length >= REQUIRED_SEATS) {
+      const errorMsg = `Aapne ${REQUIRED_SEATS} passenger(s) select kiye hain. Aap ${REQUIRED_SEATS} se jyada seats select nahi kar sakte!`;
+      alert(errorMsg);
+      showToast(errorMsg, 'warning');
+      return;
+    }
+    el.classList.remove('available');
+    el.classList.add('selected');
+    selectedSeats.push({id: seatId, number: seatNum, multiplier: priceMulti});
+  }
+
+  saveSelectedSeatsToSession();
+  updateFareDisplay();
+  update3DPreview();
+  if (typeof update3DSeatColors === 'function') update3DSeatColors();
+}
+
+function saveSelectedSeatsToSession() {
+  try {
+    const seatIds = selectedSeats.map(s => String(s.id));
+    sessionStorage.setItem('selected_seats_' + SCHEDULE_ID, JSON.stringify(seatIds));
+  } catch(e) {}
+}
+
+function autoSelectStops() {
+  const boardingEl = document.getElementById('boardingStop');
+  const alightingEl = document.getElementById('alightingStop');
+  if (!boardingEl || !alightingEl) return;
+
+  const urlParams = new URLSearchParams(window.location.search);
+  let fromCode = "{{ boarding_code }}";
+  let toCode = "{{ alighting_code }}";
+
+  if (!fromCode) fromCode = urlParams.get('from');
+  if (!toCode) toCode = urlParams.get('to');
+
+  if (!fromCode || !toCode) {
+    try {
+      const savedSearch = JSON.parse(localStorage.getItem('anandbus_search') || '{}');
+      if (!fromCode && savedSearch.source) fromCode = savedSearch.source;
+      if (!toCode && savedSearch.destination) toCode = savedSearch.destination;
+    } catch(e) {}
+  }
+
+  if (fromCode && Array.from(boardingEl.options).some(opt => opt.value === fromCode)) {
+    boardingEl.value = fromCode;
+  }
+  if (toCode && Array.from(alightingEl.options).some(opt => opt.value === toCode)) {
+    alightingEl.value = toCode;
+  }
+
+  const syncStopsState = () => {
+    try {
+      const searchState = JSON.parse(localStorage.getItem('anandbus_search') || '{}');
+      if (boardingEl.value) searchState.source = boardingEl.value;
+      if (alightingEl.value) searchState.destination = alightingEl.value;
+      localStorage.setItem('anandbus_search', JSON.stringify(searchState));
+    } catch(e) {}
+  };
+
+  boardingEl.addEventListener('change', syncStopsState);
+  alightingEl.addEventListener('change', syncStopsState);
+}
+
+function restoreSelectedSeats() {
+  autoSelectStops();
+
+  const preselectedFromContext = {{ selected_seat_ids_json|safe }};
+  let preselected = (Array.isArray(preselectedFromContext) && preselectedFromContext.length > 0) ? preselectedFromContext : null;
+
+  if (!preselected) {
+    try {
+      const saved = sessionStorage.getItem('selected_seats_' + SCHEDULE_ID);
+      if (saved) {
+        preselected = JSON.parse(saved);
+      }
+    } catch(e) {}
+  }
+
+  if (Array.isArray(preselected) && preselected.length > 0) {
+    preselected.forEach(id => {
+      const el = document.querySelector(`.seat[data-seat-id="${id}"]`);
+      if (el) {
+        const status = el.dataset.seatStatus;
+        if (!['BOOKED', 'RESERVED_LADIES', 'RESERVED_DISABLED', 'BLOCKED'].includes(status)) {
+          if (selectedSeats.length < REQUIRED_SEATS) {
+            el.classList.remove('available');
+            el.classList.add('selected');
+            const seatId = el.dataset.seatId;
+            const seatNum = el.dataset.seatNumber;
+            const priceMulti = parseFloat(el.dataset.priceMultiplier) || 1.0;
+            if (!selectedSeats.some(s => String(s.id) === String(seatId))) {
+              selectedSeats.push({id: seatId, number: seatNum, multiplier: priceMulti});
+            }
+          }
+        }
+      }
+    });
+    saveSelectedSeatsToSession();
+    updateFareDisplay();
+    update3DPreview();
+  }
+}
+
+document.addEventListener('DOMContentLoaded', restoreSelectedSeats);
+
+function updateFareDisplay() {
+  const n = selectedSeats.length;
+  const avgMulti = n > 0 ? selectedSeats.reduce((s, x) => s + x.multiplier, 0) / n : 1;
+  const perSeat = BASE_FARE * avgMulti;
+  const base = parseFloat((perSeat * n).toFixed(2));
+  const tax = parseFloat((base * TAX_RATE).toFixed(2));
+  const conv = parseFloat((CONVENIENCE_FEE_PER_SEAT * n).toFixed(2));
+  const total = parseFloat((base + tax + conv).toFixed(2));
+
+  fareData = {base_amount: base, tax_amount: tax, convenience_fee: conv, discount_amount: 0, total_amount: total};
+
+  document.getElementById('baseFare').textContent = '₹' + base.toFixed(2);
+  document.getElementById('taxAmt').textContent = '₹' + tax.toFixed(2);
+  document.getElementById('convFee').textContent = '₹' + conv.toFixed(2);
+  document.getElementById('discount').textContent = '-₹0.00';
+  document.getElementById('totalAmt').textContent = '₹' + total.toFixed(2);
+  document.getElementById('btnTotal').textContent = '₹' + total.toFixed(2);
+
+  // Update pax badge
+  const paxBadge = document.getElementById('paxSeatBadge');
+  if (paxBadge) {
+    paxBadge.textContent = `${n} / ${REQUIRED_SEATS} Seats Selected`;
+    if (n === REQUIRED_SEATS) {
+      paxBadge.style.background = '#27AE60';
+    } else {
+      paxBadge.style.background = '#1E3A5F';
+    }
+  }
+
+  // Seats list
+  const sl = document.getElementById('seatsList');
+  const nm = document.getElementById('noSeatMsg');
+  sl.innerHTML = '';
+  if (n > 0) {
+    nm.style.display = 'none';
+    selectedSeats.forEach(s => {
+      sl.innerHTML += `<span class="badge" style="background:#1E3A5F;padding:5px 10px;">${s.number}</span>`;
+    });
+  } else {
+    nm.style.display = 'inline';
+  }
+
+  const btn = document.getElementById('proceedBtn');
+  if (n > 0) {
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    btn.style.cursor = 'pointer';
+  } else {
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    btn.style.cursor = 'not-allowed';
+  }
+}
+
+function update3DPreview() {
+  const preview = document.getElementById('seat3DPreview');
+  const container = document.getElementById('selected3DSeats');
+
+  if (selectedSeats.length === 0) {
+    preview.classList.add('d-none');
+    return;
+  }
+  preview.classList.remove('d-none');
+  container.innerHTML = '';
+
+  selectedSeats.forEach(seat => {
+    const col = seat.number.slice(-1);
+    const isWindow = ['A', 'E'].includes(col);
+    container.innerHTML += `
+      <div class="text-center">
+        <div style="
+          width:70px;height:80px;
+          background: linear-gradient(180deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.1) 100%);
+          border: 2px solid rgba(255,255,255,0.5);
+          border-radius: 14px 14px 8px 8px;
+          display:flex;flex-direction:column;
+          align-items:center;justify-content:center;
+          box-shadow: 0 8px 0 rgba(0,0,0,0.3), inset 0 2px 0 rgba(255,255,255,0.2);
+          position:relative;
+        ">
+          <div style="
+            position:absolute;top:8px;left:8px;right:8px;height:10px;
+            background:rgba(255,255,255,0.2);border-radius:4px;
+          "></div>
+          <i class="fas fa-couch fa-lg mt-3" style="color:rgba(255,255,255,0.9);"></i>
+          <div style="font-size:0.7rem;font-weight:700;color:#FFD700;margin-top:4px;">${seat.number}</div>
+        </div>
+        <small style="font-size:0.68rem;opacity:0.8;display:block;margin-top:4px;">${isWindow ? '🪟 Window' : '💺 ' + (col === 'C' ? 'Middle' : 'Aisle')}</small>
+      </div>
+    `;
+  });
+}
+
+function proceedToBooking() {
+  if (selectedSeats.length === 0) {
+    const msg = 'Kripya seat select karein!';
+    alert(msg);
+    showToast(msg, 'warning');
+    return;
+  }
+
+  if (selectedSeats.length < REQUIRED_SEATS) {
+    const errorMsg = `Aapne home page par ${REQUIRED_SEATS} passenger(s) select kiye the. Kripya pure ${REQUIRED_SEATS} seats select karein! (Abhi aapne sirf ${selectedSeats.length} seat select ki hai)`;
+    alert(errorMsg);
+    showToast(errorMsg, 'danger');
+    return;
+  }
+
+  if (selectedSeats.length > REQUIRED_SEATS) {
+    const errorMsg = `Aapne home page par ${REQUIRED_SEATS} passenger(s) select kiye the. Aap ${REQUIRED_SEATS} se jyada seats select nahi kar sakte!`;
+    alert(errorMsg);
+    showToast(errorMsg, 'danger');
+    return;
+  }
+
+  const boarding = document.getElementById('boardingStop').value;
+  const alighting = document.getElementById('alightingStop').value;
+
+  if (!boarding || !alighting || boarding === alighting) {
+    const msg = 'Please select valid boarding and alighting stops';
+    alert(msg);
+    showToast(msg, 'warning');
+    return;
+  }
+
+  const seatIdsStr = selectedSeats.map(s => s.id).join(',');
+  const targetUrl = `/bookings/passenger-details/?schedule_id=${SCHEDULE_ID}&seat_ids=${seatIdsStr}&boarding_stop=${boarding}&alighting_stop=${alighting}`;
+  window.location.href = targetUrl;
+}
+
+function getCsrf() {
+  return document.cookie.split(';').find(c => c.trim().startsWith('csrftoken='))?.split('=')[1] || '';
+}
+
+function showToast(msg, type='info') {
+  const toast = document.createElement('div');
+  toast.className = `alert alert-${type} position-fixed shadow-lg animate__animated animate__fadeInDown`;
+  toast.style.cssText = 'top:80px;right:20px;z-index:9999;min-width:280px;border-radius:12px;border:none;';
+  toast.innerHTML = `<i class="fas fa-info-circle me-2"></i>${msg}`;
+  document.body.appendChild(toast);
+  setTimeout(() => { toast.classList.replace('animate__fadeInDown', 'animate__fadeOutUp'); setTimeout(() => toast.remove(), 500); }, 3000);
+}
+
+/* ─── 3D WEBGL INTERACTIVE BUS VIEWER ENGINE ───────────────────────── */
+let scene3D, camera3D, renderer3D, controls3D;
+let busGroup3D, seats3DMap = {};
+let raycaster3D, mouse3D;
+
+function init3DBusViewer() {
+  const container = document.getElementById('bus3dCanvasContainer');
+  const canvas = document.getElementById('bus3dCanvas');
+  if (!container || !canvas || !window.THREE) return;
+
+  const width = container.clientWidth || 700;
+  const height = container.clientHeight || 380;
+
+  // Scene
+  scene3D = new THREE.Scene();
+  scene3D.background = new THREE.Color(0x0f172a);
+  scene3D.fog = new THREE.FogExp2(0x0f172a, 0.02);
+
+  // Camera
+  camera3D = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+  camera3D.position.set(12, 10, 18);
+
+  // Renderer
+  renderer3D = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+  renderer3D.setSize(width, height);
+  renderer3D.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer3D.shadowMap.enabled = true;
+
+  // Controls
+  if (window.THREE.OrbitControls) {
+    controls3D = new THREE.OrbitControls(camera3D, renderer3D.domElement);
+    controls3D.enableDamping = true;
+    controls3D.dampingFactor = 0.05;
+    controls3D.maxPolarAngle = Math.PI / 2 + 0.1;
+    controls3D.minDistance = 5;
+    controls3D.maxDistance = 35;
+  }
+
+  // Lights
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+  scene3D.add(ambientLight);
+
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  dirLight.position.set(15, 25, 15);
+  dirLight.castShadow = true;
+  scene3D.add(dirLight);
+
+  // Grid Floor
+  const gridHelper = new THREE.GridHelper(40, 40, 0x2563eb, 0x334155);
+  gridHelper.position.y = -0.01;
+  scene3D.add(gridHelper);
+
+  // Bus Model
+  busGroup3D = new THREE.Group();
+  build3DBusStructure();
+  scene3D.add(busGroup3D);
+
+  // Raycaster
+  raycaster3D = new THREE.Raycaster();
+  mouse3D = new THREE.Vector2();
+
+  canvas.addEventListener('pointerdown', on3DSeatClick);
+  window.addEventListener('resize', on3DWindowResize);
+
+  animate3D();
+}
+
+function build3DBusStructure() {
+  // Bus Outer Shell
+  const busBodyGeo = new THREE.BoxGeometry(7, 4.5, 18);
+  const busBodyMat = new THREE.MeshStandardMaterial({
+    color: 0x1e3a5f,
+    transparent: true,
+    opacity: 0.25,
+    roughness: 0.1,
+    metalness: 0.8,
+    side: THREE.DoubleSide
+  });
+  const busBody = new THREE.Mesh(busBodyGeo, busBodyMat);
+  busBody.position.set(0, 2.25, 0);
+  busGroup3D.add(busBody);
+
+  // Floor
+  const floorGeo = new THREE.BoxGeometry(6.8, 0.3, 17.8);
+  const floorMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 });
+  const floor = new THREE.Mesh(floorGeo, floorMat);
+  floor.position.set(0, 0.15, 0);
+  busGroup3D.add(floor);
+
+  // Windshield
+  const windshieldGeo = new THREE.PlaneGeometry(6.6, 3);
+  const windshieldMat = new THREE.MeshPhysicalMaterial({
+    color: 0x38bdf8,
+    transparent: true,
+    opacity: 0.5,
+    roughness: 0.0,
+    transmission: 0.9
+  });
+  const windshield = new THREE.Mesh(windshieldGeo, windshieldMat);
+  windshield.position.set(0, 2.8, 8.91);
+  busGroup3D.add(windshield);
+
+  // Driver Seat & Steering Wheel
+  const driverSeatGeo = new THREE.BoxGeometry(1, 1.2, 1);
+  const driverSeatMat = new THREE.MeshStandardMaterial({ color: 0x0f172a });
+  const driverSeat = new THREE.Mesh(driverSeatGeo, driverSeatMat);
+  driverSeat.position.set(2, 1.2, 7.5);
+  busGroup3D.add(driverSeat);
+
+  const steeringGeo = new THREE.TorusGeometry(0.3, 0.05, 8, 24);
+  const steeringMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b });
+  const steering = new THREE.Mesh(steeringGeo, steeringMat);
+  steering.rotation.x = Math.PI / 3;
+  steering.position.set(2, 2.2, 8.2);
+  busGroup3D.add(steering);
+
+  // Wheels
+  const wheelGeo = new THREE.CylinderGeometry(0.8, 0.8, 0.6, 24);
+  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.9 });
+  const wheelPositions = [
+    [-3.4, 0, 5], [3.4, 0, 5],
+    [-3.4, 0, -5], [3.4, 0, -5]
+  ];
+  wheelPositions.forEach(pos => {
+    const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+    wheel.rotation.z = Math.PI / 2;
+    wheel.position.set(pos[0], pos[1], pos[2]);
+    busGroup3D.add(wheel);
+  });
+
+  // Populate 3D Seats matching 2D map
+  document.querySelectorAll('.seat').forEach(el => {
+    const seatId = el.dataset.seatId;
+    const seatNum = el.dataset.seatNumber;
+    const status = el.dataset.seatStatus;
+    const isSelected = el.classList.contains('selected');
+
+    /* Color scheme: White (Available), Grey (Selected), Blue (Booked), Pink (Ladies) */
+    let hexColor = 0xffffff;
+    if (status === 'BOOKED') hexColor = 0x0d6efd;
+    else if (status === 'RESERVED_LADIES') hexColor = 0xec4899;
+    else if (isSelected) hexColor = 0x6c757d;
+
+    const seatGroup = new THREE.Group();
+
+    const cushionGeo = new THREE.BoxGeometry(0.9, 0.2, 0.9);
+    const cushionMat = new THREE.MeshStandardMaterial({ color: hexColor, roughness: 0.4 });
+    const cushion = new THREE.Mesh(cushionGeo, cushionMat);
+    cushion.position.y = 0.5;
+    seatGroup.add(cushion);
+
+    const backGeo = new THREE.BoxGeometry(0.9, 1.2, 0.2);
+    const backMat = new THREE.MeshStandardMaterial({ color: hexColor, roughness: 0.4 });
+    const back = new THREE.Mesh(backGeo, backMat);
+    back.position.set(0, 1.1, -0.35);
+    seatGroup.add(back);
+
+    const colChar = seatNum.slice(-1);
+    const rowNum = parseInt(seatNum.slice(0, -1)) || 1;
+
+    let xPos = 0;
+    if (colChar === 'A') xPos = -2.4;
+    else if (colChar === 'B') xPos = -1.3;
+    else if (colChar === 'C') xPos = 0;
+    else if (colChar === 'D') xPos = 1.3;
+    else if (colChar === 'E') xPos = 2.4;
+
+    const zPos = 6.5 - (rowNum * 1.35);
+
+    seatGroup.position.set(xPos, 0.3, zPos);
+    seatGroup.userData = { seatId: seatId, seatNumber: seatNum, element: el };
+
+    busGroup3D.add(seatGroup);
+    seats3DMap[seatId] = seatGroup;
+  });
+}
+
+function update3DSeatColors() {
+  document.querySelectorAll('.seat').forEach(el => {
+    const seatId = el.dataset.seatId;
+    const status = el.dataset.seatStatus;
+    const isSelected = el.classList.contains('selected');
+    const seatMeshGroup = seats3DMap[seatId];
+
+    if (seatMeshGroup) {
+      let hexColor = 0xffffff;
+      if (status === 'BOOKED') hexColor = 0x0d6efd;
+      else if (status === 'RESERVED_LADIES') hexColor = 0xec4899;
+      else if (isSelected) hexColor = 0x6c757d;
+
+      seatMeshGroup.children.forEach(mesh => {
+        if (mesh.material) {
+          mesh.material.color.setHex(hexColor);
+        }
+      });
+    }
+  });
+}
+
+function on3DSeatClick(event) {
+  const container = document.getElementById('bus3dCanvasContainer');
+  if (!container || !scene3D) return;
+
+  const rect = container.getBoundingClientRect();
+  mouse3D.x = ((event.clientX - rect.left) / container.clientWidth) * 2 - 1;
+  mouse3D.y = -((event.clientY - rect.top) / container.clientHeight) * 2 + 1;
+
+  raycaster3D.setFromCamera(mouse3D, camera3D);
+  const intersects = raycaster3D.intersectObjects(busGroup3D.children, true);
+
+  for (let i = 0; i < intersects.length; i++) {
+    let obj = intersects[i].object;
+    while (obj.parent && obj.parent !== busGroup3D) {
+      obj = obj.parent;
+    }
+    if (obj.userData && obj.userData.element) {
+      toggleSeat(obj.userData.element);
+      update3DSeatColors();
+      break;
+    }
+  }
+}
+
+function set3DCameraView(mode) {
+  if (!camera3D || !controls3D) return;
+  if (mode === 'front') { camera3D.position.set(0, 5, 20); controls3D.target.set(0, 2, 0); }
+  else if (mode === 'rear') { camera3D.position.set(0, 5, -20); controls3D.target.set(0, 2, 0); }
+  else if (mode === 'side') { camera3D.position.set(20, 5, 0); controls3D.target.set(0, 2, 0); }
+  else if (mode === 'top') { camera3D.position.set(0, 22, 0.1); controls3D.target.set(0, 0, 0); }
+  else if (mode === 'interior') { camera3D.position.set(0, 2.5, 7); controls3D.target.set(0, 2.2, -5); }
+  controls3D.update();
+}
+
+function reset3DCamera() {
+  if (!camera3D || !controls3D) return;
+  camera3D.position.set(12, 10, 18);
+  controls3D.target.set(0, 2, 0);
+  controls3D.update();
+}
+
+function animate3D() {
+  requestAnimationFrame(animate3D);
+  if (controls3D) controls3D.update();
+  if (renderer3D && scene3D && camera3D) renderer3D.render(scene3D, camera3D);
+}
+
+function on3DWindowResize() {
+  const container = document.getElementById('bus3dCanvasContainer');
+  if (!container || !renderer3D || !camera3D) return;
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+  camera3D.aspect = w / h;
+  camera3D.updateProjectionMatrix();
+  renderer3D.setSize(w, h);
+}
+
+function switchViewMode(mode) {
+  const section3D = document.getElementById('bus3dSection');
+  const section2D = document.getElementById('bus2dSection');
+  const btn3D = document.getElementById('btnView3D');
+  const btn2D = document.getElementById('btnView2D');
+
+  if (mode === '3d') {
+    section3D.classList.remove('d-none');
+    section2D.classList.add('d-none');
+    btn3D.classList.add('active', 'btn-primary');
+    btn3D.classList.remove('btn-light', 'text-dark');
+    btn2D.classList.remove('active', 'btn-primary');
+    btn2D.classList.add('btn-light', 'text-dark');
+    if (!scene3D) init3DBusViewer();
+  } else {
+    section2D.classList.remove('d-none');
+    section3D.classList.add('d-none');
+    btn2D.classList.add('active', 'btn-primary');
+    btn2D.classList.remove('btn-light', 'text-dark');
+    btn3D.classList.remove('active', 'btn-primary');
+    btn3D.classList.add('btn-light', 'text-dark');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  setTimeout(init3DBusViewer, 400);
+});
+</script>
+{% endblock %}

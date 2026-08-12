@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}Sign In — AnandBus{% endblock %}
+
+{% block content %}
+<div class="min-vh-100 d-flex align-items-center py-5"
+     style="background: linear-gradient(135deg, #0a1628 0%, #1E3A5F 60%, #2980B9 100%);">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-5 col-lg-4">
+        <div class="text-center mb-4">
+          <i class="fas fa-bus-alt fa-3x mb-3" style="color:var(--brand-accent);"></i>
+          <h3 class="text-white fw-black">Welcome Back</h3>
+          <p class="text-white opacity-75 small">Sign in to your AnandBus account</p>
+        </div>
+
+        <div class="card border-0 rounded-4 shadow-lg">
+          <div class="card-body p-4">
+            <form method="POST" novalidate>
+              {% csrf_token %}
+              {% for field in form %}
+                <div class="mb-3">
+                  <label class="form-label fw-semibold small">{{ field.label }}</label>
+                  {{ field }}
+                  {% if field.errors %}
+                    <div class="invalid-feedback d-block">{{ field.errors.0 }}</div>
+                  {% endif %}
+                </div>
+              {% endfor %}
+              {% if form.non_field_errors %}
+                <div class="alert alert-danger border-0 small rounded-3">{{ form.non_field_errors.0 }}</div>
+              {% endif %}
+              <button type="submit" class="btn w-100 py-3 rounded-3 fw-bold mt-2"
+                      style="background:linear-gradient(135deg,#1E3A5F,#2980B9);color:#fff;border:none;">
+                <i class="fas fa-sign-in-alt me-2"></i>Sign In
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <div class="text-center mt-3">
+          <p class="text-white opacity-75 small">
+            Don't have an account?
+            <a href="{% url 'accounts:register' %}" class="text-warning fw-semibold text-decoration-none">Register here</a>
+          </p>
+          <div class="mt-3 p-3 rounded-3" style="background:rgba(255,255,255,0.08);">
+            <p class="text-white small opacity-75 mb-1 fw-semibold">Demo Credentials:</p>
+            <p class="text-white small opacity-60 mb-0">Admin: admin / Admin@123</p>
+            <p class="text-white small opacity-60 mb-0">Conductor: conductor1 / Conductor@123</p>
+            <p class="text-white small opacity-60 mb-0">Passenger: passenger1 / Passenger@123</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

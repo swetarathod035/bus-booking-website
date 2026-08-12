@@ -1,0 +1,349 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Passenger Information — AnandBus{% endblock %}
+
+{% block extra_css %}
+<style>
+  .step-badge {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.9rem;
+  }
+  .passenger-card {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    border: 1px solid #eef2f6;
+    transition: all 0.2s ease;
+  }
+  .passenger-card:hover {
+    box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+  }
+  .summary-card {
+    background: linear-gradient(135deg, #1E3A5F 0%, #2980B9 100%);
+    color: white;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(30,58,95,0.25);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+
+  <!-- Step Tracker Bar -->
+  <div class="row justify-content-center mb-4">
+    <div class="col-lg-8 text-center">
+      <div class="d-flex align-items-center justify-content-center gap-3">
+        <div class="d-flex align-items-center gap-2 text-muted">
+          <span class="step-badge bg-secondary text-white">1</span>
+          <a href="{% url 'bookings:select_seats' schedule.id %}?seat_ids={{ seat_ids_str }}&from={{ boarding_stop.code }}&to={{ alighting_stop.code }}&seats={{ selected_seats|length }}" class="text-decoration-none text-muted fw-semibold">Select Seats</a>
+        </div>
+        <i class="fas fa-chevron-right text-muted"></i>
+        <div class="d-flex align-items-center gap-2 text-primary">
+          <span class="step-badge text-white" style="background:var(--brand-accent);">2</span>
+          <span class="fw-bold" style="color:var(--brand-primary);">Passenger Information</span>
+        </div>
+        <i class="fas fa-chevron-right text-muted"></i>
+        <div class="d-flex align-items-center gap-2 text-muted">
+          <span class="step-badge bg-light text-secondary border">3</span>
+          <span class="fw-semibold">Payment</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- LEFT: Passenger Details Form -->
+    <div class="col-lg-8">
+      <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+        <h4 class="fw-bold mb-1" style="color: var(--brand-primary);">
+          <i class="fas fa-user-edit me-2" style="color: var(--brand-accent);"></i>Enter Passenger Details
+        </h4>
+        <p class="text-muted small mb-4">Please provide details for each passenger as per valid Government ID proof.</p>
+
+        <form method="POST" action="{% url 'bookings:passenger_info' %}" id="paxForm" novalidate>
+          {% csrf_token %}
+          <input type="hidden" name="schedule_id" value="{{ schedule.id }}">
+          <input type="hidden" name="boarding_stop" value="{{ boarding_stop.code }}">
+          <input type="hidden" name="alighting_stop" value="{{ alighting_stop.code }}">
+          <input type="hidden" name="seat_ids" value="{{ seat_ids_str }}">
+
+          <!-- Individual Passenger Inputs -->
+          <h6 class="fw-bold mb-3" style="color: var(--brand-primary);"><i class="fas fa-users me-2"></i>Passenger Details</h6>
+
+          {% for seat in selected_seats %}
+          {% with idx=forloop.counter0 %}
+          <div class="passenger-card p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+              <span class="fw-bold fs-6" style="color: var(--brand-primary);">
+                <i class="fas fa-user-tag me-2 text-warning"></i>Passenger {{ forloop.counter }}
+              </span>
+              <span class="badge px-3 py-2 rounded-pill" style="background:var(--brand-primary); color:white;">
+                Seat {{ seat.seat_number }}
+              </span>
+            </div>
+
+            <input type="hidden" name="seat_id_{{ idx }}" value="{{ seat.id }}">
+
+            <div class="row g-3">
+              <!-- Full Name -->
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold text-dark">Full Name <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" name="name_{{ idx }}"
+                       data-field-type="name"
+                       placeholder="Enter full name"
+                       pattern="[A-Za-z\s]{2,}" required>
+                <div class="invalid-feedback">Full Name must contain only letters and spaces (min 2 characters).</div>
+              </div>
+
+              <!-- Age -->
+              <div class="col-md-3">
+                <label class="form-label small fw-semibold text-dark">Age <span class="text-danger">*</span></label>
+                <input type="number" class="form-control" name="age_{{ idx }}"
+                       data-field-type="age"
+                       min="1" max="99" maxlength="2"
+                       placeholder="Age (1-99)" required>
+                <div class="invalid-feedback">Please enter a valid age (1-99)</div>
+              </div>
+
+              <!-- Gender -->
+              <div class="col-md-3">
+                <label class="form-label small fw-semibold text-dark">Gender <span class="text-danger">*</span></label>
+                <select class="form-select" name="gender_{{ idx }}" data-field-type="gender" required>
+                  <option value="" selected disabled>Select Gender</option>
+                  <option value="M">Male</option>
+                  <option value="F">Female</option>
+                  <option value="O">Other</option>
+                </select>
+                <div class="invalid-feedback">Please select a gender.</div>
+              </div>
+
+              <!-- Email Address -->
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold text-dark">Email Address <span class="text-danger">*</span></label>
+                <input type="email" class="form-control" name="email_{{ idx }}"
+                       data-field-type="email"
+                       placeholder="e.g. passenger@email.com"
+                       autocomplete="off" required>
+                <div class="invalid-feedback">Please enter a valid email address.</div>
+              </div>
+
+              <!-- Phone Number -->
+              <div class="col-md-6">
+                <label class="form-label small fw-semibold text-dark">Phone Number <span class="text-danger">*</span></label>
+                <input type="tel" class="form-control" name="phone_{{ idx }}"
+                       data-field-type="phone"
+                       maxlength="10" pattern="\d{10}"
+                       placeholder="e.g. 9876543210" required>
+                <div class="invalid-feedback">Please enter a valid 10-digit phone number.</div>
+              </div>
+            </div>
+          </div>
+          {% endwith %}
+          {% endfor %}
+
+          <!-- Submit Button -->
+          <div class="d-flex justify-content-between align-items-center mt-4">
+            <a href="{% url 'bookings:select_seats' schedule.id %}?seat_ids={{ seat_ids_str }}&from={{ boarding_stop.code }}&to={{ alighting_stop.code }}&seats={{ selected_seats|length }}" class="btn btn-outline-secondary rounded-pill px-4">
+              <i class="fas fa-arrow-left me-2"></i>Back to Seats
+            </a>
+            <button type="submit" class="btn btn-lg rounded-pill px-5 fw-bold text-white shadow-sm"
+                    style="background: linear-gradient(135deg,#FF6B35,#e55a24); border:none;">
+              Proceed to Payment <i class="fas fa-arrow-right ms-2"></i>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- RIGHT: Summary Panel -->
+    <div class="col-lg-4">
+      <div class="summary-card p-4 mb-4">
+        <h5 class="fw-bold mb-3 text-white border-bottom border-light pb-2">
+          <i class="fas fa-bus me-2"></i>Trip Summary
+        </h5>
+
+        <div class="mb-3">
+          <small class="text-white-50 text-uppercase fw-semibold" style="font-size:0.75rem;">Route</small>
+          <div class="fw-bold fs-6 text-white">{{ schedule.route }}</div>
+        </div>
+
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <small class="text-white-50 text-uppercase fw-semibold" style="font-size:0.75rem;">Travel Date</small>
+            <div class="fw-semibold text-white">{{ schedule.travel_date|date:"D, d M Y" }}</div>
+          </div>
+          <div class="col-6">
+            <small class="text-white-50 text-uppercase fw-semibold" style="font-size:0.75rem;">Departure</small>
+            <div class="fw-semibold text-white">{{ schedule.departure_time|time:"H:i" }}</div>
+          </div>
+        </div>
+
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <small class="text-white-50 text-uppercase fw-semibold" style="font-size:0.75rem;">Boarding</small>
+            <div class="fw-semibold text-white">{{ boarding_stop.name }}</div>
+          </div>
+          <div class="col-6">
+            <small class="text-white-50 text-uppercase fw-semibold" style="font-size:0.75rem;">Alighting</small>
+            <div class="fw-semibold text-white">{{ alighting_stop.name }}</div>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <small class="text-white-50 text-uppercase fw-semibold" style="font-size:0.75rem;">Selected Seats</small>
+          <div class="d-flex flex-wrap gap-1 mt-1">
+            {% for s in selected_seats %}
+              <span class="badge bg-warning text-dark fw-bold px-2 py-1 fs-7">Seat {{ s.seat_number }}</span>
+            {% endfor %}
+          </div>
+        </div>
+
+        <hr class="my-3 border-light opacity-25">
+
+        <!-- Fare Breakdown -->
+        <h6 class="fw-bold text-white mb-2"><i class="fas fa-receipt me-2"></i>Fare Breakdown</h6>
+        <div class="d-flex justify-content-between small opacity-90 mb-1">
+          <span>Base Fare ({{ selected_seats|length }} seat{% if selected_seats|length > 1 %}s{% endif %})</span>
+          <span>₹{{ fare_data.base_amount }}</span>
+        </div>
+        <div class="d-flex justify-content-between small opacity-90 mb-1">
+          <span>GST (5%)</span>
+          <span>₹{{ fare_data.tax_amount }}</span>
+        </div>
+        <div class="d-flex justify-content-between small opacity-90 mb-2">
+          <span>Convenience Fee</span>
+          <span>₹{{ fare_data.convenience_fee }}</span>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center p-3 rounded-3 mt-2" style="background: rgba(255,255,255,0.15);">
+          <span class="fw-bold fs-6">Total Amount</span>
+          <span class="fw-bold fs-4 text-warning">₹{{ fare_data.total_amount }}</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const paxForm = document.getElementById('paxForm');
+  if (!paxForm) return;
+
+  function validateField(input) {
+    const fieldType = input.dataset.fieldType;
+    const val = input.value.trim();
+    let isValid = true;
+    let errorMsg = '';
+
+    if (fieldType === 'name') {
+      const nameRegex = /^[A-Za-z\s]{2,}$/;
+      if (!val || !nameRegex.test(val)) {
+        isValid = false;
+        errorMsg = 'Full Name must contain only letters and spaces (min 2 characters).';
+      }
+    } else if (fieldType === 'age') {
+      const num = parseInt(val, 10);
+      if (!val || isNaN(num) || num < 1 || num > 99 || val.length > 2) {
+        isValid = false;
+        errorMsg = 'Please enter a valid age (1-99)';
+      }
+    } else if (fieldType === 'gender') {
+      if (!val || !['M', 'F', 'O'].includes(val)) {
+        isValid = false;
+        errorMsg = 'Please select a gender.';
+      }
+    } else if (fieldType === 'email') {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!val || !emailRegex.test(val)) {
+        isValid = false;
+        errorMsg = 'Please enter a valid email address.';
+      }
+    } else if (fieldType === 'phone') {
+      const phoneRegex = /^\d{10}$/;
+      if (!val || !phoneRegex.test(val)) {
+        isValid = false;
+        errorMsg = 'Please enter a valid 10-digit phone number.';
+      }
+    }
+
+    const feedbackEl = input.nextElementSibling;
+    if (!isValid) {
+      input.classList.add('is-invalid');
+      input.classList.remove('is-valid');
+      if (feedbackEl && feedbackEl.classList.contains('invalid-feedback')) {
+        feedbackEl.textContent = errorMsg;
+      }
+    } else {
+      input.classList.remove('is-invalid');
+      input.classList.add('is-valid');
+    }
+    return isValid;
+  }
+
+  // Attach real-time validation handlers & state persistence
+  const inputs = paxForm.querySelectorAll('[data-field-type]');
+
+  // Restore saved passenger inputs from sessionStorage
+  try {
+    const savedPax = JSON.parse(sessionStorage.getItem('anandbus_pax_inputs') || '{}');
+    Object.keys(savedPax).forEach(name => {
+      const input = paxForm.querySelector(`[name="${name}"]`);
+      if (input && savedPax[name]) {
+        input.value = savedPax[name];
+      }
+    });
+  } catch(e) {}
+
+  const savePaxState = () => {
+    try {
+      const paxData = {};
+      const allInputs = paxForm.querySelectorAll('input, select');
+      allInputs.forEach(inp => {
+        if (inp.name && inp.value) {
+          paxData[inp.name] = inp.value;
+        }
+      });
+      sessionStorage.setItem('anandbus_pax_inputs', JSON.stringify(paxData));
+    } catch(e) {}
+  };
+
+  inputs.forEach(input => {
+    input.addEventListener('blur', function() {
+      validateField(input);
+    });
+    input.addEventListener('input', function() {
+      savePaxState();
+      if (input.classList.contains('is-invalid')) {
+        validateField(input);
+      }
+    });
+    input.addEventListener('change', savePaxState);
+  });
+
+  paxForm.addEventListener('submit', function(e) {
+    let formValid = true;
+    inputs.forEach(input => {
+      if (!validateField(input)) {
+        formValid = false;
+      }
+    });
+
+    if (!formValid) {
+      e.preventDefault();
+      e.stopPropagation();
+      const firstInvalid = paxForm.querySelector('.is-invalid');
+      if (firstInvalid) {
+        firstInvalid.focus();
+      }
+    } else {
+      savePaxState();
+    }
+  });
+});
+</script>
+{% endblock %}

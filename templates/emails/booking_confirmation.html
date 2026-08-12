@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>AnandBus — Booking Confirmed</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f5f6fa; margin: 0; padding: 20px; }
+    .wrapper { max-width: 600px; margin: 0 auto; }
+    .header { background: linear-gradient(135deg, #1E3A5F, #2980B9); padding: 32px; border-radius: 16px 16px 0 0; text-align: center; }
+    .header h1 { color: #fff; margin: 0 0 4px; font-size: 22px; font-weight: 800; }
+    .header p { color: rgba(255,255,255,0.8); margin: 0; font-size: 13px; }
+    .body { background: #fff; padding: 32px; }
+    .ticket-num { background: linear-gradient(135deg,#1E3A5F,#2980B9); color: #fff; text-align: center; padding: 16px; border-radius: 12px; font-size: 20px; font-weight: 800; letter-spacing: 2px; margin-bottom: 24px; }
+    .row { display: flex; gap: 16px; margin-bottom: 16px; }
+    .field { flex: 1; background: #f8f9fa; padding: 12px; border-radius: 8px; }
+    .field .label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+    .field .value { font-size: 14px; font-weight: 600; color: #1E3A5F; }
+    .fare-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    .fare-table td { padding: 10px 0; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+    .fare-table tr:last-child td { border-bottom: none; font-weight: 700; font-size: 15px; color: #1E3A5F; }
+    .btn-cta { display: block; text-align: center; background: linear-gradient(135deg,#FF6B35,#e55a24); color: #fff; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 700; font-size: 14px; margin: 24px 0; }
+    .footer { background: #1E3A5F; padding: 20px 32px; border-radius: 0 0 16px 16px; text-align: center; color: rgba(255,255,255,0.65); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>🚌 AnandBus</h1>
+      <p>Your booking is confirmed!</p>
+    </div>
+    <div class="body">
+      <p style="color:#555;font-size:15px;">Hi <strong>{{ passenger.first_name }}</strong>, your bus ticket has been confirmed successfully.</p>
+      <div class="ticket-num">
+        {% if ticket %}TICKET # {{ ticket.ticket_number }}{% else %}BOOKING # {{ booking.short_id }}{% endif %}
+      </div>
+      <div class="row">
+        <div class="field"><div class="label">From</div><div class="value">{{ booking.boarding_stop }}</div></div>
+        <div class="field"><div class="label">To</div><div class="value">{{ booking.alighting_stop }}</div></div>
+      </div>
+      <div class="row">
+        <div class="field"><div class="label">Date</div><div class="value">{{ schedule.travel_date }}</div></div>
+        <div class="field"><div class="label">Departure</div><div class="value">{{ schedule.departure_time }}</div></div>
+      </div>
+      <div class="row">
+        <div class="field"><div class="label">Bus</div><div class="value">{{ schedule.bus.bus_name }}</div></div>
+        <div class="field"><div class="label">Seats</div><div class="value">{% for s in booking.seats.all %}{{ s.seat_number }}{% if not forloop.last %}, {% endif %}{% endfor %}</div></div>
+      </div>
+
+      <table class="fare-table">
+        <tr><td>Base Fare</td><td align="right">₹{{ booking.base_amount }}</td></tr>
+        <tr><td>GST (5%)</td><td align="right">₹{{ booking.tax_amount }}</td></tr>
+        <tr><td>Convenience Fee</td><td align="right">₹{{ booking.convenience_fee }}</td></tr>
+        <tr><td>Total Paid</td><td align="right">₹{{ booking.total_amount }}</td></tr>
+      </table>
+
+      <a href="{{ site_url }}/bookings/{{ booking.booking_id }}/" class="btn-cta">View & Download Ticket</a>
+
+      <p style="font-size:12px;color:#999;">Please present the QR code (attached PDF) to the conductor for verification. Arrive 10 minutes before departure.</p>
+    </div>
+    <div class="footer">
+      <p>AnandBus · Anand Bus Stand, Anand, Gujarat 388001<br>
+      This is an automated email. Please do not reply.</p>
+    </div>
+  </div>
+</body>
+</html>

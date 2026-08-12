@@ -1,0 +1,241 @@
+/* ============================================================
+   AnandBus Modern Design System & Stylesheet
+   ============================================================ */
+
+/* ─── Root Variables ──────────────────────────────────────── */
+:root {
+  --brand-primary: #0F172A;
+  --brand-secondary: #1E3A5F;
+  --brand-accent: #FF6B35;
+  --brand-accent-hover: #E55A24;
+  --brand-success: #10B981;
+  --brand-gold: #F59E0B;
+  --text-dark: #1E293B;
+  --text-muted: #64748B;
+  --bg-light: #F8FAFC;
+  --border-color: #E2E8F0;
+  
+  --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 16px 40px rgba(15, 23, 42, 0.12);
+  --shadow-xl: 0 24px 50px rgba(15, 23, 42, 0.18);
+  
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+}
+
+/* ─── Global Base ─────────────────────────────────────────── */
+body {
+  font-family: 'Poppins', 'Inter', -apple-system, sans-serif;
+  color: var(--text-dark);
+  background: #F1F5F9;
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* ─── Navbar Polish ───────────────────────────────────────── */
+.navbar {
+  background: var(--brand-secondary) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(12px);
+}
+.navbar-brand span {
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+.nav-link {
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+.nav-link:hover, .nav-link.active {
+  color: #FFB299 !important;
+}
+
+/* ─── Cards & Containers ──────────────────────────────────── */
+.card {
+  border-radius: var(--radius-lg) !important;
+  border: 1px solid var(--border-color);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+}
+.card-hover:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-lg) !important;
+}
+
+/* ─── Buttons ─────────────────────────────────────────────── */
+.btn {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.btn:hover {
+  transform: translateY(-2px);
+}
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn-brand {
+  background: linear-gradient(135deg, var(--brand-secondary), #2980B9);
+  color: white;
+  border: none;
+  box-shadow: 0 4px 14px rgba(30, 58, 95, 0.3);
+}
+.btn-brand:hover {
+  background: linear-gradient(135deg, #2980B9, var(--brand-secondary));
+  color: white;
+  box-shadow: 0 6px 20px rgba(30, 58, 95, 0.45);
+}
+
+.btn-accent {
+  background: linear-gradient(135deg, var(--brand-accent), var(--brand-accent-hover));
+  color: white;
+  border: none;
+  box-shadow: 0 4px 14px rgba(255, 107, 53, 0.35);
+}
+.btn-accent:hover {
+  color: white;
+  box-shadow: 0 8px 22px rgba(255, 107, 53, 0.5);
+}
+
+/* ─── Inputs & Form Controls ──────────────────────────────── */
+.form-control, .form-select {
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--border-color);
+  padding: 0.7rem 1rem;
+  font-size: 0.92rem;
+  transition: all 0.2s ease;
+}
+.form-control:focus, .form-select:focus {
+  border-color: var(--brand-secondary);
+  box-shadow: 0 0 0 4px rgba(41, 128, 185, 0.12);
+}
+
+/* ─── Dropdowns ───────────────────────────────────────────── */
+.dropdown-menu {
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-xl) !important;
+  padding: 0.6rem;
+}
+.dropdown-item {
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  transition: all 0.2s ease;
+}
+.dropdown-item:hover {
+  background: #F1F5F9;
+  color: var(--brand-secondary);
+}
+
+/* ─── Badges & Alerts ─────────────────────────────────────── */
+.badge {
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+.alert {
+  border-radius: var(--radius-md);
+  border: none;
+}
+
+/* ─── Table Enhancements ─────────────────────────────────── */
+.table {
+  background: #fff;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.table th {
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  background: #F8FAFC;
+  border-bottom: 2px solid var(--border-color);
+}
+.table-hover tbody tr:hover {
+  background: rgba(41, 128, 185, 0.04);
+}
+
+/* ─── Scrollbars ──────────────────────────────────────────── */
+::-webkit-scrollbar { width: 7px; height: 7px; }
+::-webkit-scrollbar-track { background: #F1F5F9; }
+::-webkit-scrollbar-thumb { background: var(--brand-secondary); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--brand-accent); }
+
+/* ─── Micro Animations ────────────────────────────────────── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up {
+  animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ─── UI & Layout Fixes ────────────────────────────────────── */
+.seat-legend-bar {
+  display: flex;
+  flex-wrap: wrap !important;
+  gap: 12px 16px !important;
+  align-items: center;
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 12px;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.seat-legend-bar .legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+}
+
+.seat-legend-bar .legend-box {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  border: 2px solid;
+  flex-shrink: 0 !important;
+}
+
+.form-select, .form-control {
+  box-sizing: border-box !important;
+  max-width: 100% !important;
+}
+
+.select-truncated {
+  text-overflow: ellipsis !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+}
+
+.journey-details-card, .fare-panel {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.seat-map-wrapper {
+  overflow-x: auto;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding-bottom: 8px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+

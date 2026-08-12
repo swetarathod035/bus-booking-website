@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Special Bus Schemes & Subsidies — AnandBus{% endblock %}
+
+{% block extra_css %}
+<style>
+  .scheme-hero {
+    background: linear-gradient(135deg, #0a1628 0%, #B45309 40%, #F59E0B 100%);
+    color: #ffffff;
+    padding: 3.5rem 0 3rem;
+    border-radius: 0 0 30px 30px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  }
+  .scheme-card {
+    border: none;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+    background: #ffffff;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .scheme-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 18px 40px rgba(0,0,0,0.12);
+  }
+  .scheme-badge {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: linear-gradient(135deg, #F59E0B, #D97706);
+    color: #ffffff;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 20px;
+    box-shadow: 0 4px 12px rgba(245,158,11,0.3);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="scheme-hero mb-5">
+  <div class="container text-center">
+    <div class="d-inline-flex align-items-center gap-2 bg-white bg-opacity-10 border border-white border-opacity-25 rounded-pill px-3 py-1 mb-3">
+      <i class="fas fa-gift text-warning"></i>
+      <span class="small">Government & City Welfare Initiatives</span>
+    </div>
+    <h1 class="fw-extrabold mb-2 display-6">Special Bus Schemes & Concessions</h1>
+    <p class="lead opacity-90 mx-auto" style="max-width: 650px; font-size: 1.05rem;">
+      Discover active concessions for Senior Citizens, Women Commuters, Students, and Daily Travelers in Anand.
+    </p>
+
+    {% if user.is_authenticated and user.is_super_admin %}
+    <div class="mt-3">
+      <a href="{% url 'passes:admin_add_scheme' %}" class="btn btn-warning fw-bold rounded-pill px-4 shadow">
+        <i class="fas fa-plus-circle me-1"></i>Add New Scheme (Admin)
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="container py-2">
+  <div class="row g-4">
+    {% for scheme in schemes %}
+    <div class="col-lg-4 col-md-6">
+      <div class="card scheme-card p-4 h-100 d-flex flex-column justify-content-between">
+        <div>
+          <span class="scheme-badge">{{ scheme.badge_text|default:"Special Offer" }}</span>
+
+          <div class="rounded-circle bg-warning-subtle text-warning d-flex align-items-center justify-content-center mb-3" style="width:48px;height:48px;">
+            <i class="fas fa-percent fs-5"></i>
+          </div>
+
+          <h5 class="fw-bold text-dark mb-2">{{ scheme.title }}</h5>
+          <span class="badge bg-light text-dark border mb-3">{{ scheme.get_target_audience_display }}</span>
+
+          <p class="text-muted small mb-4">
+            {{ scheme.description }}
+          </p>
+
+          <div class="p-3 rounded-3 mb-4" style="background:#f8fafc; border:1px solid #e2e8f0;">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="text-muted small">Discount Rate:</span>
+              <span class="fw-bold text-success fs-5">{{ scheme.discount_percentage }}% OFF</span>
+            </div>
+            {% if scheme.valid_until %}
+            <div class="d-flex justify-content-between align-items-center">
+              <span class="text-muted small">Valid Until:</span>
+              <span class="fw-bold text-dark small">{{ scheme.valid_until }}</span>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <button type="button" 
+                class="btn btn-warning w-100 rounded-3 fw-bold text-dark"
+                data-bs-toggle="modal" 
+                data-bs-target="#applySchemeModal" 
+                data-scheme-id="{{ scheme.id }}"
+                data-scheme-title="{{ scheme.title }}">
+          <i class="fas fa-paper-plane me-1"></i>Apply for Scheme
+        </button>
+      </div>
+    </div>
+    {% empty %}
+    <div class="col-12 text-center py-5">
+      <i class="fas fa-gift fa-3x text-muted mb-3"></i>
+      <h5 class="fw-bold text-muted">No active special schemes found</h5>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Modal for Applying to Scheme -->
+<div class="modal fade" id="applySchemeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 rounded-4 shadow">
+      <div class="modal-header bg-warning text-dark border-0 rounded-top-4">
+        <h5 class="modal-title fw-bold" id="schemeModalTitle">Apply for Scheme</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{% url 'passes:special_schemes' %}">
+        {% csrf_token %}
+        <input type="hidden" name="scheme_id" id="modalSchemeId" value="">
+
+        <div class="modal-body p-4">
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Full Name <span class="text-danger">*</span></label>
+            {{ app_form.applicant_name }}
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Email <span class="text-danger">*</span></label>
+            {{ app_form.email }}
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Phone Number <span class="text-danger">*</span></label>
+            {{ app_form.phone }}
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">ID Proof Number (Aadhaar/Voter ID) <span class="text-danger">*</span></label>
+            {{ app_form.id_proof_number }}
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Preferred Route</label>
+            {{ app_form.preferred_route }}
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Additional Notes / Eligibility Info</label>
+            {{ app_form.notes }}
+          </div>
+        </div>
+        <div class="modal-footer border-0 p-4 pt-0">
+          <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-warning rounded-pill px-4 fw-bold">Submit Scheme Application</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const applyModal = document.getElementById('applySchemeModal');
+  if (applyModal) {
+    applyModal.addEventListener('show.bs.modal', function(event) {
+      const button = event.relatedTarget;
+      const schemeId = button.getAttribute('data-scheme-id');
+      const schemeTitle = button.getAttribute('data-scheme-title');
+
+      document.getElementById('modalSchemeId').value = schemeId;
+      document.getElementById('schemeModalTitle').textContent = 'Apply for: ' + schemeTitle;
+    });
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Search Results — AnandBus{% endblock %}
+
+{% block extra_css %}
+<style>
+.schedule-card { border: none; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); transition: all 0.3s ease; }
+.schedule-card:hover { transform: translateY(-4px); box-shadow: 0 12px 35px rgba(0,0,0,0.15); }
+.badge-status { border-radius: 8px; padding: 4px 12px; font-size: 0.75rem; font-weight: 600; }
+.amenity-badge { background: #f0f4ff; color: #1E3A5F; border-radius: 6px; padding: 3px 10px; font-size: 0.73rem; }
+.price-tag { font-size: 1.6rem; font-weight: 800; color: var(--brand-primary); }
+.search-header { background: linear-gradient(135deg, #1E3A5F 0%, #2980B9 100%); border-radius: 16px; }
+.refine-card { border-radius: 16px; border: 1px solid var(--border-color); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  <!-- Search header -->
+  <div class="search-header text-white p-4 mb-4">
+    <div class="row align-items-center g-3">
+      <div class="col-lg-8">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+          <div class="text-center">
+            <div class="fw-bold fs-5">{{ source_stop.name|default:source_code }}</div>
+            <small class="opacity-75">From</small>
+          </div>
+          <div class="text-center px-2">
+            <i class="fas fa-arrow-right fa-2x opacity-50"></i>
+            <div><small class="opacity-75">{{ travel_date }}</small></div>
+          </div>
+          <div class="text-center">
+            <div class="fw-bold fs-5">{{ dest_stop.name|default:dest_code }}</div>
+            <small class="opacity-75">To</small>
+          </div>
+          <div class="ms-3">
+            <span class="badge bg-warning text-dark">{{ num_seats }} seat{{ num_seats|pluralize }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-4 text-lg-end">
+        <a href="{% url 'routes:home' %}?source={{ source_code }}&destination={{ dest_code }}&date={{ travel_date }}&seats={{ num_seats }}" class="btn btn-outline-light btn-sm rounded-pill px-3">
+          <i class="fas fa-edit me-1"></i>Modify Search
+        </a>
+      </div>
+    </div>
+  </div>
+
+  {% if error %}
+    <div class="alert alert-warning border-0 rounded-3"><i class="fas fa-exclamation-triangle me-2"></i>{{ error }}</div>
+  {% endif %}
+
+  {% if schedules %}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="fw-bold mb-0" style="color:var(--brand-primary);">
+        <i class="fas fa-list me-2"></i>{{ schedules|length }} Bus{{ schedules|length|pluralize:"es" }} Found
+      </h5>
+      <small class="text-muted">Sorted by departure time</small>
+    </div>
+
+    {% for schedule in schedules %}
+    <div class="card schedule-card mb-3">
+      <div class="card-body p-4">
+        <div class="row align-items-center g-3">
+          <!-- Bus info -->
+          <div class="col-lg-3">
+            <div class="d-flex align-items-center gap-3">
+              <div class="rounded-3 d-flex align-items-center justify-content-center"
+                   style="width:50px;height:50px;background:linear-gradient(135deg,#1E3A5F,#2980B9);">
+                <i class="fas fa-bus text-white fa-lg"></i>
+              </div>
+              <div>
+                <h6 class="mb-0 fw-bold">{{ schedule.bus.bus_name }}</h6>
+                <small class="text-muted">{{ schedule.bus.bus_number }}</small><br>
+                <span class="badge" style="background:#eef6ff;color:#1E3A5F;font-size:0.7rem;">{{ schedule.bus.get_bus_type_display }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Timing -->
+          <div class="col-lg-4">
+            <div class="d-flex align-items-center gap-3">
+              <div class="text-center">
+                <div class="fw-black fs-5" style="color:#1E3A5F;">{{ schedule.departure_time|time:"H:i" }}</div>
+                <small class="text-muted">{{ source_stop.name|default:source_code|truncatechars:15 }}</small>
+              </div>
+              <div class="flex-grow-1 text-center">
+                <div class="border-top border-dashed position-relative">
+                  <span class="position-absolute top-50 start-50 translate-middle bg-white px-2"
+                        style="color:#FF6B35;font-size:0.72rem;font-weight:600;">
+                    <i class="fas fa-bus me-1"></i>{{ schedule.route.distance_km }} km
+                  </span>
+                </div>
+              </div>
+              <div class="text-center">
+                <div class="fw-black fs-5" style="color:#1E3A5F;">{{ schedule.arrival_time|time:"H:i" }}</div>
+                <small class="text-muted">{{ dest_stop.name|default:dest_code|truncatechars:15 }}</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- Amenities -->
+          <div class="col-lg-2">
+            <div class="d-flex flex-wrap gap-1">
+              {% for amenity in schedule.bus.amenities_list %}
+                <span class="amenity-badge">{{ amenity }}</span>
+              {% endfor %}
+              <span class="amenity-badge">{{ schedule.available_seats }} seats left</span>
+            </div>
+          </div>
+
+          <!-- Status & Price -->
+          <div class="col-lg-3 text-lg-end">
+            <div class="mb-2">
+              {% if schedule.status == 'SCHEDULED' %}
+                <span class="badge-status badge bg-success">On Time</span>
+              {% elif schedule.status == 'DELAYED' %}
+                <span class="badge-status badge bg-warning text-dark">Delayed {{ schedule.delay_minutes }}min</span>
+              {% endif %}
+            </div>
+            <div class="price-tag mb-2">₹{{ schedule.route.calculate_fare }}</div>
+            <small class="text-muted d-block mb-2">per person (incl. taxes)</small>
+            {% if schedule.available_seats >= num_seats %}
+              <a href="{% url 'bookings:select_seats' schedule.id %}?from={{ source_code }}&to={{ dest_code }}&seats={{ num_seats }}&date={{ travel_date }}"
+                 class="btn btn-sm fw-semibold px-4 py-2"
+                 style="background:linear-gradient(135deg,#FF6B35,#e55a24);color:#fff;border-radius:10px;border:none;">
+                <i class="fas fa-chair me-1"></i>Select Seats
+              </a>
+            {% else %}
+              <span class="badge bg-danger">Sold Out</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+
+  {% elif source_code and dest_code %}
+    <div class="text-center py-5">
+      <i class="fas fa-bus-slash fa-4x text-muted mb-3"></i>
+      <h4 class="text-muted">No buses available for this route on {{ travel_date }}</h4>
+      <p class="text-muted">Try a different date or route.</p>
+      <a href="{% url 'routes:home' %}?source={{ source_code }}&destination={{ dest_code }}&date={{ travel_date }}&seats={{ num_seats }}" class="btn btn-primary rounded-pill px-4">
+        <i class="fas fa-search me-2"></i>New Search
+      </a>
+    </div>
+  {% else %}
+    <div class="text-center py-5">
+      <i class="fas fa-search fa-4x text-muted mb-3"></i>
+      <h4 class="text-muted">Enter your journey details to find buses</h4>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+try {
+  const searchState = {
+    source: "{{ source_code }}",
+    destination: "{{ dest_code }}",
+    date: "{{ travel_date }}",
+    seats: "{{ num_seats }}"
+  };
+  if (searchState.source || searchState.destination) {
+    localStorage.setItem('anandbus_search', JSON.stringify(searchState));
+  }
+} catch(e) {}
+</script>
+{% endblock %}

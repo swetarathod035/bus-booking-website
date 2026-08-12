@@ -1,0 +1,511 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Payment Gateway — AnandBus{% endblock %}
+
+{% block extra_css %}
+<style>
+  .payment-card {
+    background: #ffffff;
+    border-radius: 20px;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.08);
+    border: 1px solid #e2e8f0;
+  }
+  .pay-nav .nav-link {
+    color: #475569;
+    border-radius: 12px;
+    font-weight: 600;
+    padding: 12px 16px;
+    transition: all 0.25s ease;
+  }
+  .pay-nav .nav-link.active {
+    background: #1E3A5F !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(30,58,95,0.25);
+  }
+  .method-box {
+    border: 2px solid #e2e8f0;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .method-box:hover, .method-box.selected {
+    border-color: #FF6B35;
+    background: #fff8f5;
+  }
+  .bank-box {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .bank-box:hover, .bank-box.selected {
+    border-color: #1E3A5F;
+    background: #f1f5f9;
+  }
+  .qr-frame {
+    background: #ffffff;
+    padding: 16px;
+    border-radius: 16px;
+    border: 2px dashed #cbd5e1;
+    display: inline-block;
+  }
+  /* Processing Modal Overlay */
+  .processing-overlay {
+    position: fixed; inset: 0;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(8px);
+    z-index: 9999;
+    display: none;
+    align-items: center; justify-content: center;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5" style="max-width:780px;">
+  <!-- Top Security Banner -->
+  <div class="d-flex justify-content-between align-items-center mb-4 p-3 rounded-4 shadow-sm" style="background: linear-gradient(135deg, #1E3A5F 0%, #2980B9 100%); color:white;">
+    <div class="d-flex align-items-center gap-3">
+      <i class="fas fa-shield-halved fa-2x text-warning"></i>
+      <div>
+        <h6 class="fw-bold mb-0">AnandBus Secure Checkout</h6>
+        <small class="opacity-75">256-bit SSL Encryption · PCI-DSS Compliant</small>
+      </div>
+    </div>
+    <span class="badge bg-white text-dark px-3 py-2 rounded-pill fw-bold">
+      <i class="fas fa-lock text-success me-1"></i>VERIFIED
+    </span>
+  </div>
+
+  <div class="row g-4">
+    <!-- Payment Form Card -->
+    <div class="col-lg-12">
+      <div class="payment-card p-4">
+
+        <!-- Booking Summary Header -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center p-3 mb-4 rounded-3" style="background:#f8fafc; border:1px solid #e2e8f0;">
+          <div>
+            <span class="badge bg-warning text-dark fw-bold me-2">PNR: {{ booking.short_id }}</span>
+            <span class="fw-bold text-dark fs-6">{{ booking.schedule.route }}</span>
+            <div class="small text-muted mt-1">
+              <i class="fas fa-calendar-alt me-1"></i>{{ booking.schedule.travel_date|date:"D, d M Y" }} at {{ booking.schedule.departure_time|time:"H:i" }} | {{ booking.num_passengers }} Passenger{% if booking.num_passengers > 1 %}s{% endif %}
+            </div>
+          </div>
+          <div class="text-end mt-2 mt-sm-0">
+            <small class="text-muted d-block">Total Amount Payable</small>
+            <span class="fw-bold fs-3 text-primary" style="color:var(--brand-accent) !important;">₹{{ booking.total_amount }}</span>
+          </div>
+        </div>
+
+        <!-- Payment Method Tabs -->
+        <ul class="nav nav-pills nav-fill pay-nav mb-4 p-1 rounded-3" style="background:#f1f5f9;">
+          <li class="nav-item">
+            <button class="nav-link active" id="tab-upi" data-bs-toggle="pill" data-bs-target="#pay-upi" type="button">
+              <i class="fas fa-mobile-screen-button me-2"></i>UPI & QR Code
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" id="tab-card" data-bs-toggle="pill" data-bs-target="#pay-card" type="button">
+              <i class="fas fa-credit-card me-2"></i>Credit / Debit Card
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" id="tab-net" data-bs-toggle="pill" data-bs-target="#pay-net" type="button">
+              <i class="fas fa-university me-2"></i>Net Banking
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" id="tab-wallet" data-bs-toggle="pill" data-bs-target="#pay-wallet" type="button">
+              <i class="fas fa-wallet me-2"></i>Wallets
+            </button>
+          </li>
+        </ul>
+
+        <!-- Main Form -->
+        <form method="POST" action="{% url 'bookings:payment_success' %}" id="gatewayForm">
+          {% csrf_token %}
+          <input type="hidden" name="booking_id" value="{{ booking.booking_id }}">
+          <input type="hidden" name="razorpay_payment_id" id="razorpay_payment_id" value="pay_upi_gpay_{{ booking.short_id }}">
+          <input type="hidden" name="razorpay_order_id" value="{{ razorpay_order_id|default:'demo_order_123' }}">
+          <input type="hidden" name="razorpay_signature" value="demo_sig_verified">
+
+          <div class="tab-content">
+
+            <!-- 1. UPI & QR Code Tab -->
+            <div class="tab-pane fade show active" id="pay-upi">
+              <div class="row g-4 align-items-center">
+                <!-- QR Code Block -->
+                <div class="col-md-5 text-center border-end pe-md-4">
+                  <div class="qr-frame mb-2 shadow-sm">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi://pay?pa=anandbus@icici%26pn=AnandBus%26am={{ booking.total_amount }}%26cu=INR"
+                         alt="UPI QR Code" width="180" height="180" class="img-fluid rounded">
+                  </div>
+                  <div class="small fw-bold text-dark mb-1">
+                    <i class="fas fa-qrcode me-1 text-primary"></i>Scan QR Code with Any UPI App
+                  </div>
+                  <div class="badge bg-light text-secondary border px-3 py-1">
+                    Expires in: <span id="timerText" class="text-danger fw-bold">04:59</span>
+                  </div>
+                </div>
+
+                <!-- UPI Apps & VPA Input -->
+                <div class="col-md-7 ps-md-4">
+                  <label class="form-label small fw-bold text-dark">Select Popular UPI App</label>
+                  <div class="row g-2 mb-3">
+                    <div class="col-6">
+                      <div class="method-box selected p-3 text-center" onclick="selectUpiApp(this, 'PhonePe')">
+                        <i class="fas fa-wallet fa-2x text-purple mb-1 d-block" style="color:#673ab7;"></i>
+                        <span class="fw-bold small text-dark">PhonePe</span>
+                      </div>
+                    </div>
+                    <div class="col-6">
+                      <div class="method-box p-3 text-center" onclick="selectUpiApp(this, 'GPay')">
+                        <i class="fab fa-google-pay fa-2x text-primary mb-1 d-block"></i>
+                        <span class="fw-bold small text-dark">Google Pay</span>
+                      </div>
+                    </div>
+                    <div class="col-6">
+                      <div class="method-box p-3 text-center" onclick="selectUpiApp(this, 'Paytm')">
+                        <i class="fas fa-bolt fa-2x text-info mb-1 d-block"></i>
+                        <span class="fw-bold small text-dark">Paytm UPI</span>
+                      </div>
+                    </div>
+                    <div class="col-6">
+                      <div class="method-box p-3 text-center" onclick="selectUpiApp(this, 'BHIM')">
+                        <i class="fas fa-university fa-2x text-success mb-1 d-block"></i>
+                        <span class="fw-bold small text-dark">BHIM UPI</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label small fw-bold text-dark">Or Enter UPI ID / VPA</label>
+                    <div class="input-group">
+                      <span class="input-group-text bg-light"><i class="fas fa-at text-muted"></i></span>
+                      <input type="text" class="form-control" placeholder="e.g. 9876543210@ybl" id="upiVpaInput">
+                      <button class="btn btn-outline-secondary" type="button" onclick="verifyVpa()">Verify</button>
+                    </div>
+                    <small id="vpaStatus" class="text-muted d-block mt-1" style="font-size:0.75rem;">Instant verification for PhonePe, GPay, Paytm, BHIM</small>
+                  </div>
+
+                  <button type="button" class="btn btn-lg w-100 py-3 rounded-3 fw-bold text-white shadow-sm"
+                          style="background: linear-gradient(135deg,#FF6B35,#e55a24); border:none;"
+                          onclick="triggerPaymentFlow('UPI')">
+                    <i class="fas fa-lock me-2"></i>Pay ₹{{ booking.total_amount }} via UPI
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. Credit / Debit Card Tab -->
+            <div class="tab-pane fade" id="pay-card">
+              <div class="mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <label class="form-label small fw-bold text-dark mb-0">Card Number</label>
+                  <span id="cardBrandIcon" class="badge bg-light text-dark border">
+                    <i class="far fa-credit-card me-1"></i>Card
+                  </span>
+                </div>
+                <div class="input-group">
+                  <span class="input-group-text bg-light"><i class="fas fa-credit-card text-primary"></i></span>
+                  <input type="text" class="form-control fw-bold" id="cardNumberInput"
+                         placeholder="4532 8812 9901 8892" maxlength="19" value="4532 8812 9901 8892">
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label small fw-bold text-dark">Cardholder Full Name</label>
+                <input type="text" class="form-control" id="cardNameInput"
+                       placeholder="Name on card" value="{{ booking.passenger_name }}">
+              </div>
+
+              <div class="row g-3 mb-3">
+                <div class="col-6">
+                  <label class="form-label small fw-bold text-dark">Expiry Date</label>
+                  <input type="text" class="form-control" id="cardExpiryInput"
+                         placeholder="MM/YY" maxlength="5" value="12/28">
+                </div>
+                <div class="col-6">
+                  <label class="form-label small fw-bold text-dark">CVV / CVC Code</label>
+                  <div class="input-group">
+                    <input type="password" class="form-control fw-bold" id="cardCvvInput"
+                           placeholder="123" maxlength="4" value="888">
+                    <span class="input-group-text bg-light text-muted" title="3 digits on back of card"><i class="fas fa-question-circle"></i></span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-check mb-4">
+                <input class="form-check-input" type="checkbox" id="saveCardCheck" checked>
+                <label class="form-check-label small text-muted" for="saveCardCheck">
+                  Save card securely under PCI-DSS guidelines for future instant checkout
+                </label>
+              </div>
+
+              <button type="button" class="btn btn-lg w-100 py-3 rounded-3 fw-bold text-white shadow-sm"
+                      style="background: linear-gradient(135deg,#1E3A5F,#2980B9); border:none;"
+                      onclick="triggerPaymentFlow('CARD')">
+                <i class="fas fa-shield-alt me-2"></i>Pay ₹{{ booking.total_amount }} with Card
+              </button>
+            </div>
+
+            <!-- 3. Net Banking Tab -->
+            <div class="tab-pane fade" id="pay-net">
+              <label class="form-label small fw-bold text-dark mb-3">Select Popular Bank</label>
+              <div class="row g-3 mb-4">
+                <div class="col-4 col-md-2">
+                  <div class="bank-box selected p-2 text-center" onclick="selectBank(this, 'SBI')">
+                    <i class="fas fa-university fa-2x text-primary mb-1 d-block"></i>
+                    <small class="fw-bold text-dark d-block">SBI</small>
+                  </div>
+                </div>
+                <div class="col-4 col-md-2">
+                  <div class="bank-box p-2 text-center" onclick="selectBank(this, 'HDFC')">
+                    <i class="fas fa-building fa-2x text-danger mb-1 d-block"></i>
+                    <small class="fw-bold text-dark d-block">HDFC</small>
+                  </div>
+                </div>
+                <div class="col-4 col-md-2">
+                  <div class="bank-box p-2 text-center" onclick="selectBank(this, 'ICICI')">
+                    <i class="fas fa-landmark fa-2x text-warning mb-1 d-block"></i>
+                    <small class="fw-bold text-dark d-block">ICICI</small>
+                  </div>
+                </div>
+                <div class="col-4 col-md-2">
+                  <div class="bank-box p-2 text-center" onclick="selectBank(this, 'Axis')">
+                    <i class="fas fa-money-check fa-2x text-purple mb-1 d-block" style="color:#800020;"></i>
+                    <small class="fw-bold text-dark d-block">Axis</small>
+                  </div>
+                </div>
+                <div class="col-4 col-md-2">
+                  <div class="bank-box p-2 text-center" onclick="selectBank(this, 'Kotak')">
+                    <i class="fas fa-coins fa-2x text-info mb-1 d-block"></i>
+                    <small class="fw-bold text-dark d-block">Kotak</small>
+                  </div>
+                </div>
+                <div class="col-4 col-md-2">
+                  <div class="bank-box p-2 text-center" onclick="selectBank(this, 'BOB')">
+                    <i class="fas fa-vault fa-2x text-success mb-1 d-block"></i>
+                    <small class="fw-bold text-dark d-block">BOB</small>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mb-4">
+                <label class="form-label small fw-bold text-dark">Or Select Other Bank</label>
+                <select class="form-select" id="otherBankSelect">
+                  <option selected disabled>Choose from 50+ Indian Banks...</option>
+                  <option>Bank of Baroda</option>
+                  <option>Canara Bank</option>
+                  <option>Union Bank of India</option>
+                  <option>Punjab National Bank (PNB)</option>
+                  <option>IDFC FIRST Bank</option>
+                  <option>IndusInd Bank</option>
+                  <option>Federal Bank</option>
+                </select>
+              </div>
+
+              <button type="button" class="btn btn-lg w-100 py-3 rounded-3 fw-bold text-white shadow-sm"
+                      style="background: linear-gradient(135deg,#1E3A5F,#2980B9); border:none;"
+                      onclick="triggerPaymentFlow('NETBANKING')">
+                <i class="fas fa-university me-2"></i>Pay ₹{{ booking.total_amount }} via NetBanking
+              </button>
+            </div>
+
+            <!-- 4. Wallets Tab -->
+            <div class="tab-pane fade" id="pay-wallet">
+              <label class="form-label small fw-bold text-dark mb-3">Select Wallet</label>
+              <div class="row g-3 mb-4">
+                <div class="col-6">
+                  <div class="method-box selected p-3 d-flex align-items-center gap-3" onclick="selectWallet(this, 'Paytm Wallet')">
+                    <i class="fas fa-wallet fa-2x text-info"></i>
+                    <div>
+                      <h6 class="fw-bold text-dark mb-0">Paytm Wallet</h6>
+                      <small class="text-muted">Link & pay using balance</small>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-6">
+                  <div class="method-box p-3 d-flex align-items-center gap-3" onclick="selectWallet(this, 'Amazon Pay')">
+                    <i class="fab fa-amazon-pay fa-2x text-warning"></i>
+                    <div>
+                      <h6 class="fw-bold text-dark mb-0">Amazon Pay</h6>
+                      <small class="text-muted">Instant pay with cashback</small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <button type="button" class="btn btn-lg w-100 py-3 rounded-3 fw-bold text-white shadow-sm"
+                      style="background: linear-gradient(135deg,#FF6B35,#e55a24); border:none;"
+                      onclick="triggerPaymentFlow('WALLET')">
+                <i class="fas fa-lock me-2"></i>Pay ₹{{ booking.total_amount }} via Wallet
+              </button>
+            </div>
+
+          </div>
+        </form>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="text-center text-muted mt-4" style="font-size:0.8rem;">
+    <i class="fas fa-shield-check me-1 text-success"></i>Guaranteed Safe & Secure Checkout by AnandBus Express Payments
+  </div>
+</div>
+
+<!-- ─── REALISTIC BANK 3D-SECURE OTP MODAL ────────────────────────────────────── -->
+<div class="modal fade" id="otpModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:440px;">
+    <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+      <!-- Modal Header Banner -->
+      <div class="p-3 text-white text-center" style="background: linear-gradient(135deg, #1E3A5F, #2980B9);">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <span class="badge bg-warning text-dark fw-bold" id="otpBankTitle">SBI Verified 3D-Secure</span>
+          <small class="opacity-75">SSL 256-Bit</small>
+        </div>
+        <h5 class="fw-bold mb-0">Authentication Required</h5>
+      </div>
+
+      <div class="modal-body p-4 text-center">
+        <div class="mb-3">
+          <span class="badge bg-light text-dark border px-3 py-2 fs-6">
+            Merchant: <strong>AnandBus Express</strong> | Amount: <strong class="text-primary">₹{{ booking.total_amount }}</strong>
+          </span>
+        </div>
+
+        <p class="text-muted small mb-3">
+          An OTP has been sent to your registered mobile number <strong class="text-dark">+91 ******8892</strong>.
+        </p>
+
+        <div class="mb-3">
+          <input type="text" class="form-control text-center fw-bold fs-3" id="otpInput"
+                 maxlength="6" placeholder="4 8 2 9 1 0" style="letter-spacing:6px;" value="482910">
+          <small class="text-success fw-semibold mt-1 d-block"><i class="fas fa-circle-check me-1"></i>Sample OTP auto-filled for testing</small>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-4 px-2 small">
+          <span class="text-muted">Resend OTP in: <strong class="text-danger">0:28</strong></span>
+          <a href="#" class="text-decoration-none fw-bold" onclick="alert('New OTP sent to +91 ******8892'); return false;">Resend OTP</a>
+        </div>
+
+        <button type="button" class="btn btn-lg w-100 rounded-3 fw-bold text-white shadow"
+                style="background: linear-gradient(135deg,#FF6B35,#e55a24); border:none;"
+                onclick="submitBankOtp()">
+          <i class="fas fa-lock me-2"></i>Submit OTP & Authorize Payment
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── PROCESSING SCREEN OVERLAY ───────────────────────────────────────────── -->
+<div class="processing-overlay" id="processingOverlay">
+  <div class="text-center text-white p-4 rounded-4" style="background: rgba(30, 58, 95, 0.95); max-width:400px;">
+    <div class="spinner-border text-warning mb-3" style="width: 3.5rem; height: 3.5rem;" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+    <h5 class="fw-bold mb-2">Processing Your Payment</h5>
+    <p class="small text-white-50 mb-0">Communicating securely with issuing bank... Please do not refresh or close this window.</p>
+  </div>
+</div>
+
+<script>
+let selectedMethod = 'PhonePe';
+let selectedBankName = 'State Bank of India';
+
+function selectUpiApp(el, name) {
+  document.querySelectorAll('#pay-upi .method-box').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedMethod = name;
+  document.getElementById('razorpay_payment_id').value = 'pay_upi_' + name.toLowerCase() + '_{{ booking.short_id }}';
+}
+
+function selectBank(el, name) {
+  document.querySelectorAll('#pay-net .bank-box').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedBankName = name;
+  document.getElementById('razorpay_payment_id').value = 'pay_net_' + name.toLowerCase() + '_{{ booking.short_id }}';
+}
+
+function selectWallet(el, name) {
+  document.querySelectorAll('#pay-wallet .method-box').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('razorpay_payment_id').value = 'pay_wallet_' + name.toLowerCase().replace(/\s+/g, '_') + '_{{ booking.short_id }}';
+}
+
+function verifyVpa() {
+  const vpa = document.getElementById('upiVpaInput').value.trim();
+  const status = document.getElementById('vpaStatus');
+  if (vpa.includes('@')) {
+    status.innerHTML = '<span class="text-success fw-bold"><i class="fas fa-circle-check me-1"></i>UPI ID Verified (' + vpa + ')</span>';
+  } else {
+    status.innerHTML = '<span class="text-danger"><i class="fas fa-circle-exclamation me-1"></i>Please enter a valid UPI ID (e.g. name@upi)</span>';
+  }
+}
+
+// Card formatting & brand detection
+document.getElementById('cardNumberInput')?.addEventListener('input', function(e) {
+  let val = e.target.value.replace(/\D/g, '');
+  val = val.match(/.{1,4}/g)?.join(' ') || val;
+  e.target.value = val;
+
+  const icon = document.getElementById('cardBrandIcon');
+  if (val.startsWith('4')) {
+    icon.innerHTML = '<i class="fab fa-cc-visa me-1 text-primary fs-6"></i>Visa';
+  } else if (val.startsWith('5')) {
+    icon.innerHTML = '<i class="fab fa-cc-mastercard me-1 text-danger fs-6"></i>Mastercard';
+  } else if (val.startsWith('6')) {
+    icon.innerHTML = '<i class="fas fa-credit-card me-1 text-success fs-6"></i>RuPay';
+  } else {
+    icon.innerHTML = '<i class="far fa-credit-card me-1"></i>Card';
+  }
+});
+
+// Trigger Payment Flow
+function triggerPaymentFlow(type) {
+  if (type === 'CARD' || type === 'NETBANKING') {
+    document.getElementById('otpBankTitle').textContent = type === 'CARD' ? 'Card 3D-Secure Protect' : selectedBankName + ' NetBanking Auth';
+    const otpModal = new bootstrap.Modal(document.getElementById('otpModal'));
+    otpModal.show();
+  } else {
+    // UPI / Wallet direct smooth processing
+    showProcessingScreen();
+    setTimeout(() => {
+      document.getElementById('gatewayForm').submit();
+    }, 1500);
+  }
+}
+
+function submitBankOtp() {
+  const otpModalEl = document.getElementById('otpModal');
+  const modalInstance = bootstrap.Modal.getInstance(otpModalEl);
+  if (modalInstance) modalInstance.hide();
+
+  showProcessingScreen();
+  setTimeout(() => {
+    document.getElementById('gatewayForm').submit();
+  }, 1200);
+}
+
+function showProcessingScreen() {
+  const overlay = document.getElementById('processingOverlay');
+  if (overlay) overlay.style.display = 'flex';
+}
+
+// 5-minute countdown timer for UPI QR Code
+let seconds = 299;
+setInterval(() => {
+  if (seconds <= 0) return;
+  seconds--;
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  const timerEl = document.getElementById('timerText');
+  if (timerEl) {
+    timerEl.textContent = (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
+  }
+}, 1000);
+</script>
+{% endblock %}

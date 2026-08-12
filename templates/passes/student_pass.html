@@ -1,0 +1,242 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Student Bus Pass Application — AnandBus{% endblock %}
+
+{% block extra_css %}
+<style>
+  .pass-hero {
+    background: linear-gradient(135deg, #0a1628 0%, #1E3A5F 50%, #2563EB 100%);
+    color: #ffffff;
+    padding: 3.5rem 0 3rem;
+    border-radius: 0 0 30px 30px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  }
+  .pass-card {
+    border: none;
+    border-radius: 20px;
+    box-shadow: 0 12px 35px rgba(0,0,0,0.08);
+    background: #ffffff;
+    overflow: hidden;
+  }
+  .fare-preview-box {
+    background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+    border: 2px dashed #3B82F6;
+    border-radius: 16px;
+    padding: 1.5rem;
+  }
+  .benefit-badge {
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 50px;
+    padding: 6px 16px;
+    font-size: 0.85rem;
+  }
+  .step-circle {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--brand-primary);
+    color: #ffffff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.9rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="pass-hero mb-4">
+  <div class="container text-center">
+    <div class="d-inline-flex align-items-center gap-2 benefit-badge mb-3">
+      <i class="fas fa-graduation-cap text-warning fs-6"></i>
+      <span>Anand City Student Welfare Scheme</span>
+    </div>
+    <h1 class="fw-extrabold mb-2 display-6">Apply for Student Bus Pass</h1>
+    <p class="lead opacity-90 mx-auto" style="max-width: 650px; font-size: 1.05rem;">
+      Save up to <strong class="text-warning">70% on daily commute fares</strong> across all Anand city bus routes. Quick digital verification & hassle-free pass approval!
+    </p>
+  </div>
+</div>
+
+<div class="container py-3">
+  <div class="row g-4 justify-content-center">
+    <!-- LEFT: Form Column -->
+    <div class="col-lg-8">
+      <div class="card pass-card p-4 p-md-5">
+        <div class="d-flex align-items-center gap-3 mb-4 pb-3 border-bottom">
+          <div class="step-circle"><i class="fas fa-id-card"></i></div>
+          <div>
+            <h4 class="fw-bold mb-0 text-dark">Student Pass Application Form</h4>
+            <small class="text-muted">Fill out your details to generate your digital bus pass</small>
+          </div>
+        </div>
+
+        <form method="post" enctype="multipart/form-data" id="studentPassForm">
+          {% csrf_token %}
+
+          <!-- Personal Information -->
+          <h6 class="fw-bold text-primary mb-3"><i class="fas fa-user me-2"></i>1. Student Information</h6>
+          <div class="row g-3 mb-4">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Full Name <span class="text-danger">*</span></label>
+              {{ form.applicant_name }}
+              {% if form.applicant_name.errors %}<div class="text-danger small">{{ form.applicant_name.errors.0 }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Email Address <span class="text-danger">*</span></label>
+              {{ form.email }}
+              {% if form.email.errors %}<div class="text-danger small">{{ form.email.errors.0 }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Phone Number <span class="text-danger">*</span></label>
+              {{ form.phone }}
+              {% if form.phone.errors %}<div class="text-danger small">{{ form.phone.errors.0 }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Aadhaar / ID Card No <span class="text-danger">*</span></label>
+              {{ form.id_proof_number }}
+              {% if form.id_proof_number.errors %}<div class="text-danger small">{{ form.id_proof_number.errors.0 }}</div>{% endif %}
+            </div>
+          </div>
+
+          <!-- Academic Information -->
+          <h6 class="fw-bold text-primary mb-3"><i class="fas fa-university me-2"></i>2. School / College Details</h6>
+          <div class="row g-3 mb-4">
+            <div class="col-md-7">
+              <label class="form-label fw-semibold small">College / Institute Name <span class="text-danger">*</span></label>
+              {{ form.college_name }}
+              {% if form.college_name.errors %}<div class="text-danger small">{{ form.college_name.errors.0 }}</div>{% endif %}
+            </div>
+            <div class="col-md-5">
+              <label class="form-label fw-semibold small">Student Roll / Reg. No <span class="text-danger">*</span></label>
+              {{ form.student_id_number }}
+              {% if form.student_id_number.errors %}<div class="text-danger small">{{ form.student_id_number.errors.0 }}</div>{% endif %}
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold small">Upload Student ID Card / Bonafide (Optional/Verification)</label>
+              {{ form.id_proof_document }}
+              <div class="form-text small">Accepted formats: JPG, PNG, PDF (Max 5MB)</div>
+            </div>
+          </div>
+
+          <!-- Route & Duration -->
+          <h6 class="fw-bold text-primary mb-3"><i class="fas fa-route me-2"></i>3. Bus Route & Pass Validity</h6>
+          <div class="row g-3 mb-4">
+            <div class="col-md-12">
+              <label class="form-label fw-semibold small">Select Primary Bus Route <span class="text-danger">*</span></label>
+              {{ form.route }}
+              {% if form.route.errors %}<div class="text-danger small">{{ form.route.errors.0 }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Boarding Stop</label>
+              {{ form.start_stop }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small">Destination Stop</label>
+              {{ form.end_stop }}
+            </div>
+            <div class="col-md-12">
+              <label class="form-label fw-semibold small">Pass Duration & Subsidy <span class="text-danger">*</span></label>
+              {{ form.duration_months }}
+            </div>
+          </div>
+
+          <!-- Fare Calculation Preview -->
+          <div class="fare-preview-box mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="fw-bold text-dark"><i class="fas fa-calculator me-2 text-primary"></i>Estimated Pass Price</span>
+              <span class="badge bg-success px-3 py-2 fs-6" id="discountBadge">50% Student Discount Applied</span>
+            </div>
+            <div class="d-flex align-items-baseline gap-3">
+              <div class="display-6 fw-bold text-primary" id="displayFinalFare">₹500.00</div>
+              <div class="text-muted text-decoration-line-through fs-5" id="displayOrigFare">₹1000.00</div>
+            </div>
+            <small class="text-muted d-block mt-1">Unlimited daily bus rides on your selected route during the pass validity period.</small>
+          </div>
+
+          <!-- Submit Button -->
+          <button type="submit" class="btn btn-primary btn-lg w-100 py-3 rounded-3 fw-bold text-uppercase shadow-sm" style="background: linear-gradient(135deg, #1E3A5F, #2563EB); border:none;">
+            <i class="fas fa-paper-plane me-2"></i>Submit Student Pass Application
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- RIGHT: Info Sidebar -->
+    <div class="col-lg-4">
+      <div class="card pass-card p-4 mb-4">
+        <h5 class="fw-bold text-dark mb-3"><i class="fas fa-sparkles text-warning me-2"></i>Student Pass Perks</h5>
+        <ul class="list-unstyled mb-0 d-flex flex-column gap-3">
+          <li class="d-flex align-items-start gap-3">
+            <div class="rounded-circle bg-primary-subtle text-primary p-2 d-flex align-items-center justify-content-center" style="width:36px;height:36px;min-width:36px;">
+              <i class="fas fa-percent"></i>
+            </div>
+            <div>
+              <strong class="d-block text-dark small">70% Maximum Subsidy</strong>
+              <span class="text-muted" style="font-size:0.8rem;">Annual passes offer the highest government subsidized discount.</span>
+            </div>
+          </li>
+          <li class="d-flex align-items-start gap-3">
+            <div class="rounded-circle bg-success-subtle text-success p-2 d-flex align-items-center justify-content-center" style="width:36px;height:36px;min-width:36px;">
+              <i class="fas fa-qrcode"></i>
+            </div>
+            <div>
+              <strong class="d-block text-dark small">Instant Digital Pass</strong>
+              <span class="text-muted" style="font-size:0.8rem;">Show your verified digital pass code directly to bus conductors.</span>
+            </div>
+          </li>
+          <li class="d-flex align-items-start gap-3">
+            <div class="rounded-circle bg-warning-subtle text-warning p-2 d-flex align-items-center justify-content-center" style="width:36px;height:36px;min-width:36px;">
+              <i class="fas fa-bus-simple"></i>
+            </div>
+            <div>
+              <strong class="d-block text-dark small">All Anand City Buses</strong>
+              <span class="text-muted" style="font-size:0.8rem;">Valid on all Express & Local buses connecting V.V. Nagar & Anand.</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="card pass-card p-4" style="background:#fff9e6; border:1px solid #ffe0b2;">
+        <h6 class="fw-bold text-dark mb-2"><i class="fas fa-circle-info text-warning me-2"></i>Eligibility Criteria</h6>
+        <p class="small text-muted mb-0">
+          Must be currently enrolled in an accredited school, college, or university in Anand district. Valid student identity document required during conductor verification.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const durationSelect = document.getElementById('id_duration_months');
+  const displayFinal = document.getElementById('displayFinalFare');
+  const displayOrig = document.getElementById('displayOrigFare');
+  const discountBadge = document.getElementById('discountBadge');
+
+  function updateFareEstimate() {
+    const months = parseInt(durationSelect.value || 1);
+    let discPct = 50;
+    if (months === 3) discPct = 60;
+    if (months === 6) discPct = 65;
+    if (months === 12) discPct = 70;
+
+    const baseMonthlyFare = 1000; // Standard monthly base
+    const totalOrig = baseMonthlyFare * months;
+    const finalFare = totalOrig - (totalOrig * (discPct / 100));
+
+    displayFinal.textContent = '₹' + finalFare.toFixed(2);
+    displayOrig.textContent = '₹' + totalOrig.toFixed(2);
+    discountBadge.textContent = discPct + '% Student Discount Applied';
+  }
+
+  if (durationSelect) {
+    durationSelect.addEventListener('change', updateFareEstimate);
+    updateFareEstimate();
+  }
+});
+</script>
+{% endblock %}

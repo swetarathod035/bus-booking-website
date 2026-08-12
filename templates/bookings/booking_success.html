@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block title %}Booking Confirmed!{% endblock %}
+
+{% block content %}
+<div class="container py-5" style="max-width:640px;">
+  <div class="text-center mb-4 animate__animated animate__bounceIn">
+    <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
+         style="width:90px;height:90px;background:linear-gradient(135deg,#27AE60,#1abc9c);">
+      <i class="fas fa-check fa-3x text-white"></i>
+    </div>
+    <h2 class="fw-black" style="color:#27AE60;">Booking Confirmed!</h2>
+    <p class="text-muted">Your ticket has been issued and sent to your email.</p>
+  </div>
+
+  <div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-body p-4">
+      <div class="text-center mb-4 p-3 rounded-3" style="background:linear-gradient(135deg,#1E3A5F,#2980B9);">
+        <h3 class="text-white fw-black mb-1">
+          {% if ticket %}Ticket #{{ ticket.ticket_number }}{% else %}Booking #{{ booking.short_id }}{% endif %}
+        </h3>
+        <div class="badge bg-warning text-dark fw-bold px-3 py-2 fs-6 mb-2">PNR: {{ booking.pnr_number }}</div>
+        <div><small class="text-white opacity-75">{{ booking.schedule.travel_date }} — {{ booking.schedule.departure_time|time:"H:i" }}</small></div>
+      </div>
+
+
+      <div class="row g-3">
+        <div class="col-6"><div class="text-muted small">Route</div><div class="fw-semibold">{{ booking.schedule.route.route_name }}</div></div>
+        <div class="col-6"><div class="text-muted small">Bus</div><div class="fw-semibold">{{ booking.schedule.bus.bus_name }}</div></div>
+        <div class="col-6"><div class="text-muted small">From</div><div class="fw-semibold">{{ booking.boarding_stop }}</div></div>
+        <div class="col-6"><div class="text-muted small">To</div><div class="fw-semibold">{{ booking.alighting_stop }}</div></div>
+        <div class="col-6"><div class="text-muted small">Seats</div><div class="fw-semibold">{% for seat in booking.seats.all %}{{ seat.seat_number }}{% if not forloop.last %}, {% endif %}{% endfor %}</div></div>
+        <div class="col-6"><div class="text-muted small">Total Paid</div><div class="fw-black" style="color:var(--brand-primary);">₹{{ booking.total_amount }}</div></div>
+      </div>
+
+      {% if ticket and ticket.qr_code %}
+        <div class="text-center mt-4">
+          <p class="text-muted small mb-2">Show this QR code to the conductor</p>
+          <img src="{{ ticket.qr_code.url }}" alt="QR Code" class="img-fluid rounded-3 shadow-sm" style="max-width:180px;">
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="d-flex flex-wrap gap-3 justify-content-center">
+    {% if ticket %}
+      <a href="{% url 'bookings:download_ticket' booking.booking_id %}" class="btn btn-lg px-5 fw-semibold rounded-3"
+         style="background:linear-gradient(135deg,#1E3A5F,#2980B9);color:#fff;border:none;">
+        <i class="fas fa-download me-2"></i>Download PDF Ticket
+      </a>
+    {% endif %}
+    <a href="{% url 'bookings:passenger_dashboard' %}" class="btn btn-lg btn-outline-secondary px-4 rounded-3 fw-semibold">
+      <i class="fas fa-list me-2"></i>My Bookings
+    </a>
+    <a href="{% url 'tracking:live' booking.schedule.id %}" class="btn btn-lg px-4 rounded-3 fw-semibold"
+       style="background:#FF6B35;color:#fff;border:none;">
+      <i class="fas fa-map-marker-alt me-2"></i>Track Bus Live
+    </a>
+  </div>
+</div>
+{% endblock %}
