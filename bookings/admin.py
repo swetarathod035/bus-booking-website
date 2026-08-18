@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Seat, Booking, PassengerDetail, Payment, Ticket
+from .models import Seat, Booking, PassengerDetail, Payment, Ticket, RideRating
 
 
 @admin.register(Booking)
@@ -23,3 +23,11 @@ class TicketAdmin(admin.ModelAdmin):
     list_display = ['ticket_number', 'booking', 'is_verified', 'issued_at']
     search_fields = ['ticket_number']
     list_filter = ['is_verified']
+
+
+@admin.register(RideRating)
+class RideRatingAdmin(admin.ModelAdmin):
+    list_display = ['booking', 'passenger', 'driver_punctuality', 'bus_cleanliness', 'staff_behavior', 'overall_rating', 'created_at']
+    list_filter = ['overall_rating', 'driver_punctuality', 'bus_cleanliness', 'created_at']
+    search_fields = ['passenger__username', 'booking__booking_id', 'comment']
+

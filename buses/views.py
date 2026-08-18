@@ -1,9 +1,10 @@
 """
 SuperAdmin dashboard and bus/driver/route management views.
 """
-import json
+import json, datetime
 from datetime import date, timedelta
 from decimal import Decimal
+
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
@@ -59,6 +60,18 @@ def admin_dashboard(request):
     pie_labels = [b['status'] for b in booking_stats]
     pie_data = [b['count'] for b in booking_stats]
 
+    # Driver Punctuality & Bus Cleanliness Ratings stats
+    from bookings.models import RideRating
+    from django.db.models import Avg
+    rating_stats = RideRating.objects.aggregate(
+        avg_punctuality=Avg('driver_punctuality'),
+        avg_cleanliness=Avg('bus_cleanliness'),
+        avg_staff=Avg('staff_behavior'),
+        avg_overall=Avg('overall_rating'),
+        total_reviews=Count('id')
+    )
+    recent_reviews = RideRating.objects.select_related('passenger', 'driver', 'bus', 'schedule__route').order_by('-created_at')[:6]
+
     context = {
         'title': 'Admin Dashboard — AnandBus',
         'total_buses': total_buses,
@@ -72,9 +85,12 @@ def admin_dashboard(request):
         'pie_labels': json.dumps(pie_labels),
         'pie_data': json.dumps(pie_data),
         'recent_bookings': recent_bookings,
+        'rating_stats': rating_stats,
+        'recent_reviews': recent_reviews,
         'today': today,
     }
     return render(request, 'buses/admin_dashboard.html', context)
+
 
 
 # ─── Bus CRUD ─────────────────────────────────────────────────────────────────
@@ -126,6 +142,16 @@ def bus_toggle(request, pk):
     return redirect('buses:bus_list')
 
 
+@superadmin_required
+def bus_delete(request, pk):
+    bus = get_object_or_404(Bus, pk=pk)
+    if request.method == 'POST':
+        b_num = bus.bus_number
+        bus.delete()
+        messages.success(request, f'Bus {b_num} deleted successfully.')
+    return redirect('buses:bus_list')
+
+
 # ─── Driver CRUD ──────────────────────────────────────────────────────────────
 @superadmin_required
 def driver_list(request):
@@ -162,11 +188,60 @@ def driver_edit(request, pk):
     return render(request, 'buses/driver_form.html', {'form': form, 'title': 'Edit Driver', 'action': 'Save'})
 
 
+@superadmin_required
+def driver_delete(request, pk):
+    driver = get_object_or_404(Driver, pk=pk)
+    if request.method == 'POST':
+        d_name = driver.name
+        driver.delete()
+        messages.success(request, f'Driver {d_name} deleted successfully.')
+    return redirect('buses:driver_list')
+
+
 # ─── Route & Schedule Management ─────────────────────────────────────────────
 @superadmin_required
 def route_management(request):
     routes = Route.objects.all().select_related('source', 'destination')
     return render(request, 'buses/route_management.html', {'routes': routes, 'title': 'Manage Routes'})
+
+
+@superadmin_required
+def route_create(request):
+    from .forms import RouteForm
+    if request.method == 'POST':
+        form = RouteForm(request.POST)
+        if form.is_valid():
+            route = form.save()
+            messages.success(request, f'Route {route.route_number} added successfully.')
+            return redirect('buses:route_management')
+    else:
+        form = RouteForm()
+    return render(request, 'buses/route_form.html', {'form': form, 'title': 'Add New Route', 'action': 'Add'})
+
+
+@superadmin_required
+def route_edit(request, pk):
+    from .forms import RouteForm
+    route = get_object_or_404(Route, pk=pk)
+    if request.method == 'POST':
+        form = RouteForm(request.POST, instance=route)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Route {route.route_number} updated.')
+            return redirect('buses:route_management')
+    else:
+        form = RouteForm(instance=route)
+    return render(request, 'buses/route_form.html', {'form': form, 'title': 'Edit Route', 'action': 'Save', 'route': route})
+
+
+@superadmin_required
+def route_delete(request, pk):
+    route = get_object_or_404(Route, pk=pk)
+    if request.method == 'POST':
+        r_num = route.route_number
+        route.delete()
+        messages.success(request, f'Route {r_num} deleted successfully.')
+    return redirect('buses:route_management')
 
 
 @superadmin_required
@@ -180,12 +255,137 @@ def schedule_management(request):
     })
 
 
-# ─── User Management ──────────────────────────────────────────────────────────
+@superadmin_required
+def schedule_create(request):
+    from .forms import ScheduleForm
+    if request.method == 'POST':
+        form = ScheduleForm(request.POST)
+        if form.is_valid():
+            sch = form.save()
+            from accounts.models import log_admin_action, AdminAuditLog
+            log_admin_action(
+                admin_user=request.user,
+                action_type=AdminAuditLog.ActionType.SCHEDULE_CREATED,
+                target_repr=f"Schedule #{sch.id} (Route {sch.route.route_number})",
+                details=f"Created schedule on {sch.travel_date} (Dep: {sch.departure_time.strftime('%H:%M')}, Arr: {sch.arrival_time.strftime('%H:%M')}) using Bus {sch.bus.bus_number}.",
+                request=request
+            )
+            messages.success(request, f'Schedule for route {sch.route.route_number} created.')
+            return redirect('buses:schedule_management')
+    else:
+        form = ScheduleForm()
+    return render(request, 'buses/schedule_form.html', {'form': form, 'title': 'Add Schedule', 'action': 'Add'})
+
+
+@superadmin_required
+def schedule_edit(request, pk):
+    from .forms import ScheduleForm
+    sch = get_object_or_404(Schedule, pk=pk)
+    if request.method == 'POST':
+        form = ScheduleForm(request.POST, instance=sch)
+        if form.is_valid():
+            sch = form.save()
+            from accounts.models import log_admin_action, AdminAuditLog
+            log_admin_action(
+                admin_user=request.user,
+                action_type=AdminAuditLog.ActionType.SCHEDULE_UPDATED,
+                target_repr=f"Schedule #{sch.id} (Route {sch.route.route_number})",
+                details=f"Updated schedule parameters for travel date {sch.travel_date} (Dep: {sch.departure_time.strftime('%H:%M')}, Status: {sch.get_status_display()}).",
+                request=request
+            )
+            messages.success(request, 'Schedule updated.')
+            return redirect('buses:schedule_management')
+    else:
+        form = ScheduleForm(instance=sch)
+    return render(request, 'buses/schedule_form.html', {'form': form, 'title': 'Edit Schedule', 'action': 'Save', 'schedule': sch})
+
+
+@superadmin_required
+def schedule_delete(request, pk):
+    sch = get_object_or_404(Schedule, pk=pk)
+    if request.method == 'POST':
+        sch_repr = f"Schedule #{sch.id} (Route {sch.route.route_number} on {sch.travel_date})"
+        sch.delete()
+        from accounts.models import log_admin_action, AdminAuditLog
+        log_admin_action(
+            admin_user=request.user,
+            action_type=AdminAuditLog.ActionType.SCHEDULE_DELETED,
+            target_repr=sch_repr,
+            details=f"Deleted schedule permanently.",
+            request=request
+        )
+        messages.success(request, 'Schedule deleted successfully.')
+    return redirect('buses:schedule_management')
+
+
+
+# ─── User Management & Roles Directory ─────────────────────────────────────────
 @superadmin_required
 def user_management(request):
     from accounts.models import CustomUser
+    role_filter = request.GET.get('role', '')
+    query = request.GET.get('q', '').strip()
+
     users = CustomUser.objects.all().order_by('-date_joined')
-    return render(request, 'buses/user_management.html', {'users': users, 'title': 'Manage Users'})
+    
+    # Calculate counts per role
+    total_users_count = CustomUser.objects.count()
+    admin_count = CustomUser.objects.filter(role=CustomUser.Role.SUPER_ADMIN).count()
+    conductor_count = CustomUser.objects.filter(role=CustomUser.Role.CONDUCTOR).count()
+    passenger_count = CustomUser.objects.filter(role=CustomUser.Role.PASSENGER).count()
+
+    if role_filter in dict(CustomUser.Role.choices):
+        users = users.filter(role=role_filter)
+    if query:
+        users = users.filter(
+            Q(username__icontains=query) |
+            Q(first_name__icontains=query) |
+            Q(last_name__icontains=query) |
+            Q(email__icontains=query) |
+            Q(phone__icontains=query)
+        )
+
+    return render(request, 'buses/user_management.html', {
+        'users': users,
+        'title': 'Users & Roles Directory — AnandBus',
+        'current_role': role_filter,
+        'query': query,
+        'role_choices': CustomUser.Role.choices,
+        'total_users_count': total_users_count,
+        'admin_count': admin_count,
+        'conductor_count': conductor_count,
+        'passenger_count': passenger_count,
+    })
+
+
+@superadmin_required
+def user_create(request):
+    from .forms import UserCreateForm
+    if request.method == 'POST':
+        form = UserCreateForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            messages.success(request, f'User {user.username} created successfully.')
+            return redirect('buses:user_management')
+    else:
+        form = UserCreateForm()
+    return render(request, 'buses/user_form.html', {'form': form, 'title': 'Add New User', 'action': 'Add'})
+
+
+@superadmin_required
+def user_edit(request, user_id):
+    from accounts.models import CustomUser
+    from .forms import UserEditForm
+    user = get_object_or_404(CustomUser, pk=user_id)
+    if request.method == 'POST':
+        form = UserEditForm(request.POST, instance=user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'User {user.username} updated.')
+            return redirect('buses:user_management')
+    else:
+        form = UserEditForm(instance=user)
+    return render(request, 'buses/user_form.html', {'form': form, 'title': 'Edit User', 'action': 'Save', 'user_obj': user})
 
 
 @superadmin_required
@@ -195,10 +395,149 @@ def promote_user(request, user_id):
         user = get_object_or_404(CustomUser, pk=user_id)
         new_role = request.POST.get('role')
         if new_role in dict(CustomUser.Role.choices):
+            old_role_display = user.get_role_display()
             user.role = new_role
             user.save()
-            messages.success(request, f'{user.username} role updated to {new_role}.')
+
+            from accounts.models import log_admin_action, AdminAuditLog
+            log_admin_action(
+                admin_user=request.user,
+                action_type=AdminAuditLog.ActionType.USER_PROMOTED,
+                target_repr=f"User @{user.username}",
+                details=f"Admin updated role for user {user.get_full_name() or user.username} from {old_role_display} to {user.get_role_display()}.",
+                request=request
+            )
+            messages.success(request, f'Role for {user.username} updated to {user.get_role_display()}.')
     return redirect('buses:user_management')
+
+
+
+@superadmin_required
+def user_delete(request, user_id):
+    from accounts.models import CustomUser
+    user = get_object_or_404(CustomUser, pk=user_id)
+    if request.method == 'POST':
+        if user == request.user:
+            messages.error(request, 'You cannot delete your own logged-in admin account.')
+        else:
+            uname = user.username
+            user.delete()
+            messages.success(request, f'User {uname} deleted successfully.')
+    return redirect('buses:user_management')
+
+
+# ─── Bus Stop CRUD ───────────────────────────────────────────────────────────
+@superadmin_required
+def stop_list(request):
+    stops = Stop.objects.all().order_by('name')
+    query = request.GET.get('q', '').strip()
+    if query:
+        stops = stops.filter(Q(name__icontains=query) | Q(code__icontains=query) | Q(address__icontains=query))
+    return render(request, 'buses/stop_list.html', {'stops': stops, 'title': 'Manage Bus Stops', 'query': query})
+
+
+@superadmin_required
+def stop_create(request):
+    from .forms import StopForm
+    if request.method == 'POST':
+        form = StopForm(request.POST, request.FILES)
+        if form.is_valid():
+            stop = form.save()
+            messages.success(request, f'Bus stop {stop.name} added successfully.')
+            return redirect('buses:stop_list')
+    else:
+        form = StopForm()
+    return render(request, 'buses/stop_form.html', {'form': form, 'title': 'Add New Bus Stop', 'action': 'Add'})
+
+
+@superadmin_required
+def stop_edit(request, pk):
+    from .forms import StopForm
+    stop = get_object_or_404(Stop, pk=pk)
+    if request.method == 'POST':
+        form = StopForm(request.POST, request.FILES, instance=stop)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Bus stop {stop.name} updated.')
+            return redirect('buses:stop_list')
+    else:
+        form = StopForm(instance=stop)
+    return render(request, 'buses/stop_form.html', {'form': form, 'title': 'Edit Bus Stop', 'action': 'Save', 'stop': stop})
+
+
+@superadmin_required
+def stop_delete(request, pk):
+    stop = get_object_or_404(Stop, pk=pk)
+    if request.method == 'POST':
+        name = stop.name
+        stop.delete()
+        messages.success(request, f'Bus stop {name} deleted successfully.')
+    return redirect('buses:stop_list')
+
+
+# ─── Booking Admin CRUD ───────────────────────────────────────────────────────
+@superadmin_required
+def booking_admin_list(request):
+    status_filter = request.GET.get('status', '')
+    query = request.GET.get('q', '').strip()
+    bookings = Booking.objects.all().select_related('passenger', 'schedule__route').order_by('-created_at')
+    if status_filter:
+        bookings = bookings.filter(status=status_filter)
+    if query:
+        bookings = bookings.filter(
+            Q(booking_id__icontains=query) |
+            Q(passenger__username__icontains=query) |
+            Q(passenger__email__icontains=query) |
+            Q(passenger_name__icontains=query)
+        )
+    return render(request, 'buses/booking_admin_list.html', {
+        'bookings': bookings,
+        'title': 'Manage Bookings',
+        'current_status': status_filter,
+        'query': query,
+        'status_choices': Booking.Status.choices,
+    })
+
+
+@superadmin_required
+def booking_admin_update(request, pk):
+    booking = get_object_or_404(Booking, pk=pk)
+    if request.method == 'POST':
+        new_status = request.POST.get('status')
+        if new_status in dict(Booking.Status.choices):
+            booking.status = new_status
+            booking.save()
+            messages.success(request, f'Booking {booking.short_id} status updated to {booking.get_status_display()}.')
+    return redirect('buses:booking_admin_list')
+
+
+@superadmin_required
+def booking_admin_delete(request, pk):
+    booking = get_object_or_404(Booking, pk=pk)
+    if request.method == 'POST':
+        bid = booking.short_id
+        booking.delete()
+        messages.success(request, f'Booking {bid} deleted successfully.')
+    return redirect('buses:booking_admin_list')
+
+
+# ─── Pass Verifier ────────────────────────────────────────────────────────────
+def pass_verifier_page(request):
+    """Pass verification interface replacing legacy pass_verifier.php."""
+    from bookings.models import BusPass
+    pass_number = request.GET.get('pass_number', '').strip().upper()
+    bus_pass = None
+    searched = False
+    if pass_number:
+        searched = True
+        bus_pass = BusPass.objects.filter(pass_number=pass_number).select_related('passenger', 'scheme').first()
+
+    return render(request, 'buses/pass_verifier.html', {
+        'title': 'Pass Verifier — AnandBus',
+        'pass_number': pass_number,
+        'bus_pass': bus_pass,
+        'searched': searched,
+    })
 
 
 # ─── Revenue Reports ──────────────────────────────────────────────────────────
@@ -253,7 +592,6 @@ def export_bookings_excel(request):
             booking.created_at.strftime('%Y-%m-%d %H:%M'),
         ])
 
-    # Auto-width columns
     for col in ws.columns:
         max_len = max(len(str(cell.value or '')) for cell in col)
         ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 40)
@@ -270,6 +608,98 @@ def export_bookings_excel(request):
     return response
 
 
+# ─── Digital Conductor Duty Chart ──────────────────────────────────────────────
+@superadmin_required
+def duty_chart_view(request):
+    """Digital Conductor & Driver Duty Chart Portal."""
+    date_str = request.GET.get('date')
+    if date_str:
+        try:
+            target_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+        except Exception:
+            target_date = datetime.date.today()
+    else:
+        target_date = datetime.date.today()
+
+    schedules = Schedule.objects.filter(
+        travel_date=target_date
+    ).select_related('route', 'bus', 'driver').order_by('departure_time')
+
+    # Fetch conductor profiles
+    from accounts.models import ConductorProfile
+    conductor_profiles = ConductorProfile.objects.select_related('user', 'assigned_bus').all()
+
+    duty_roster = []
+    for sch in schedules:
+        assigned_conductor = None
+        for cp in conductor_profiles:
+            if cp.assigned_bus_id == sch.bus_id:
+                assigned_conductor = cp.user.get_full_name() or cp.user.username
+                break
+
+        dep_hour = sch.departure_time.hour
+        if dep_hour < 12:
+            shift_name = "Morning Shift (06:00 - 14:00)"
+        elif dep_hour < 18:
+            shift_name = "Afternoon Shift (14:00 - 22:00)"
+        else:
+            shift_name = "Night Shift (22:00 - 06:00)"
+
+        duty_roster.append({
+            'schedule': sch,
+            'bus': sch.bus,
+            'driver': sch.driver,
+            'conductor_name': assigned_conductor or "Ramesh Patel (Default Duty)",
+            'route': sch.route,
+            'departure_time': sch.departure_time,
+            'arrival_time': sch.arrival_time,
+            'shift': shift_name,
+            'status': sch.get_status_display(),
+            'status_code': sch.status,
+        })
+
+    return render(request, 'buses/duty_chart.html', {
+        'title': 'Digital Conductor Duty Chart',
+        'target_date': target_date,
+        'duty_roster': duty_roster,
+        'total_trips': len(duty_roster),
+    })
+
+
+# ─── Quick E-Ticket Verification ──────────────────────────────────────────────
+def quick_verify_ticket_view(request):
+    """Quick E-Ticket Verification for Conductors, Inspectors & Examiners."""
+    from bookings.models import Ticket, Booking
+    ticket_query = request.GET.get('ticket_id', '').strip().upper()
+    ticket_result = None
+    verification_status = None
+    
+    if ticket_query:
+        t = Ticket.objects.filter(
+            Q(ticket_number__iexact=ticket_query) |
+            Q(booking__booking_id__startswith=ticket_query.lower())
+        ).select_related('booking__passenger', 'booking__schedule__route', 'booking__schedule__bus').first()
+
+        if t:
+            ticket_result = t
+            travel_date = t.booking.schedule.travel_date
+            if travel_date < datetime.date.today():
+                verification_status = 'EXPIRED'
+            elif t.booking.status in ['CANCELLED', 'REFUNDED']:
+                verification_status = 'CANCELLED'
+            else:
+                verification_status = 'VALID'
+        else:
+            verification_status = 'INVALID'
+
+    return render(request, 'buses/quick_verify.html', {
+        'title': 'Quick E-Ticket Verification',
+        'ticket_query': ticket_query,
+        'ticket_result': ticket_result,
+        'verification_status': verification_status,
+    })
+
+
 # ─── AJAX: Toggle schedule status ────────────────────────────────────────────
 @superadmin_required
 def api_toggle_schedule_status(request, schedule_id):
@@ -279,7 +709,70 @@ def api_toggle_schedule_status(request, schedule_id):
         new_status = data.get('status')
         valid = [s[0] for s in Schedule.Status.choices]
         if new_status in valid:
+            old_status = schedule.status
             schedule.status = new_status
             schedule.save()
+
+            from accounts.models import log_admin_action, AdminAuditLog
+            log_admin_action(
+                admin_user=request.user,
+                action_type=AdminAuditLog.ActionType.SCHEDULE_STATUS_CHANGED,
+                target_repr=f"Schedule #{schedule.id} ({schedule.route.route_number})",
+                details=f"Status toggled from {old_status} to {new_status} for travel date {schedule.travel_date}.",
+                request=request
+            )
             return JsonResponse({'success': True, 'status': new_status})
     return JsonResponse({'success': False}, status=400)
+
+
+# ─── Admin Activity Audit Logs Portal ──────────────────────────────────────────
+@superadmin_required
+def admin_audit_logs(request):
+    """SuperAdmin view to track and filter all administrative activity logs."""
+    from accounts.models import AdminAuditLog, CustomUser
+
+    action_filter = request.GET.get('action', '')
+    user_filter   = request.GET.get('user', '')
+    query         = request.GET.get('q', '').strip()
+
+    audit_logs = AdminAuditLog.objects.select_related('admin_user').all()
+
+    if action_filter:
+        audit_logs = audit_logs.filter(action_type=action_filter)
+    if user_filter and user_filter.isdigit():
+        audit_logs = audit_logs.filter(admin_user_id=int(user_filter))
+    if query:
+        audit_logs = audit_logs.filter(
+            Q(target_repr__icontains=query) |
+            Q(details__icontains=query) |
+            Q(admin_user__username__icontains=query) |
+            Q(admin_user__first_name__icontains=query) |
+            Q(admin_user__last_name__icontains=query)
+        )
+
+    admin_users = CustomUser.objects.filter(
+        Q(role=CustomUser.Role.SUPER_ADMIN) | Q(is_staff=True) | Q(is_superuser=True)
+    ).distinct()
+
+    return render(request, 'buses/admin_audit_logs.html', {
+        'title': 'Admin Activity Audit Logs — AnandBus',
+        'audit_logs': audit_logs[:150],
+        'action_choices': AdminAuditLog.ActionType.choices,
+        'admin_users': admin_users,
+        'current_action': action_filter,
+        'current_user': user_filter,
+        'query': query,
+        'total_logs_count': AdminAuditLog.objects.count(),
+    })
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,204 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Scan Passenger — Conductor{% endblock %}
+
+{% block extra_css %}
+<style>
+.scan-box { border:2px dashed #dee2e6; border-radius:18px; padding:32px; text-align:center; transition:all 0.3s; }
+.scan-box:focus-within { border-color:#1E3A5F; background:#f8f9fa; }
+.result-card { border:none; border-radius:18px; overflow:hidden; box-shadow:0 6px 28px rgba(0,0,0,0.1); }
+.pass-status-badge { font-size:0.78rem; padding:5px 14px; border-radius:20px; font-weight:700; }
+.data-row { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #f0f0f0; font-size:0.88rem; }
+.data-row:last-child { border-bottom:none; }
+.data-label { color:#888; font-weight:500; }
+.data-value { font-weight:600; color:#1E3A5F; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width:720px;">
+
+  <!-- Header -->
+  <div class="d-flex align-items-center gap-3 mb-4">
+    <a href="{% url 'conductor:dashboard' %}" class="btn btn-sm btn-outline-secondary rounded-3">
+      <i class="fas fa-arrow-left me-1"></i>Dashboard
+    </a>
+    <div>
+      <h4 class="fw-bold mb-0" style="color:var(--brand-primary);">Passenger Data Scanner</h4>
+      <small class="text-muted">Scan by ticket number, pass number, or phone</small>
+    </div>
+  </div>
+
+  <!-- Search Box -->
+  <form method="GET" class="mb-4">
+    <div class="scan-box">
+      <i class="fas fa-qrcode fa-3x mb-3" style="color:#1E3A5F;opacity:0.5;"></i>
+      <h6 class="fw-bold mb-3">Enter Ticket / Pass / Phone Number</h6>
+      <div class="d-flex gap-2">
+        <input type="text" name="q" class="form-control form-control-lg rounded-3"
+               placeholder="e.g. AB-20260808-ABCD1234 or AB-STU-2608-ABC123 or 9876543210"
+               value="{{ query|default:'' }}" autofocus
+               style="font-family:monospace;letter-spacing:0.5px;">
+        <button type="submit" class="btn rounded-3 fw-bold px-4"
+                style="background:linear-gradient(135deg,#1E3A5F,#2980B9);color:#fff;border:none;white-space:nowrap;">
+          <i class="fas fa-search me-2"></i>Scan
+        </button>
+      </div>
+      <div class="mt-2 d-flex flex-wrap gap-2 justify-content-center">
+        <span class="badge" style="background:#eef6ff;color:#1E3A5F;font-size:0.73rem;padding:5px 12px;">
+          <i class="fas fa-ticket-alt me-1"></i>Ticket Number
+        </span>
+        <span class="badge" style="background:#f0fff4;color:#27AE60;font-size:0.73rem;padding:5px 12px;">
+          <i class="fas fa-id-card me-1"></i>Bus Pass Number
+        </span>
+        <span class="badge" style="background:#fff8e6;color:#b8860b;font-size:0.73rem;padding:5px 12px;">
+          <i class="fas fa-phone me-1"></i>Phone Number
+        </span>
+      </div>
+    </div>
+  </form>
+
+  <!-- ─── Results ──────────────────────────────────────────────────────── -->
+  {% if not_found %}
+    <div class="result-card text-center p-5">
+      <i class="fas fa-user-slash fa-3x text-muted mb-3"></i>
+      <h5 class="text-muted">No passenger found for "{{ query }}"</h5>
+      <p class="text-muted small">Try ticket number, pass number, or 10-digit phone.</p>
+    </div>
+  {% endif %}
+
+  {% if result_type == 'ticket' and ticket %}
+  <div class="result-card">
+    <div style="background:linear-gradient(135deg,#1E3A5F,#2980B9);" class="p-4 text-white">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <div class="small opacity-75">Ticket Number</div>
+          <h4 class="fw-black mb-1">{{ ticket.ticket_number }}</h4>
+          <div class="small opacity-75">Booking ID: {{ booking.short_id }}</div>
+        </div>
+        <span class="badge" style="background:{% if ticket.is_verified %}#27AE60{% else %}#FF6B35{% endif %};border-radius:10px;padding:8px 16px;font-size:0.82rem;">
+          {% if ticket.is_verified %}✓ Verified{% else %}⚠ Not Verified{% endif %}
+        </span>
+      </div>
+    </div>
+    <div class="p-4">
+      <h6 class="fw-bold mb-3" style="color:var(--brand-primary);"><i class="fas fa-user me-2"></i>Passenger Information</h6>
+      <div class="data-row"><span class="data-label">Name</span><span class="data-value">{{ booking.passenger_name }}</span></div>
+      <div class="data-row"><span class="data-label">Email</span><span class="data-value">{{ booking.passenger_email }}</span></div>
+      <div class="data-row"><span class="data-label">Phone</span><span class="data-value">{{ booking.passenger_phone|default:'—' }}</span></div>
+      <div class="data-row"><span class="data-label">Route</span><span class="data-value">{{ booking.schedule.route.route_name }}</span></div>
+      <div class="data-row"><span class="data-label">Date</span><span class="data-value">{{ booking.schedule.travel_date|date:"d M Y" }} · {{ booking.schedule.departure_time|time:"H:i" }}</span></div>
+      <div class="data-row">
+        <span class="data-label">Seats</span>
+        <span class="data-value">
+          {% for s in booking.seats.all %}<span class="badge me-1" style="background:#1E3A5F;">{{ s.seat_number }}</span>{% endfor %}
+        </span>
+      </div>
+      <div class="data-row"><span class="data-label">Boarding</span><span class="data-value">{{ booking.boarding_stop }}</span></div>
+      <div class="data-row"><span class="data-label">Alighting</span><span class="data-value">{{ booking.alighting_stop }}</span></div>
+
+      {% if passenger_details %}
+      <h6 class="fw-bold mt-3 mb-2" style="color:var(--brand-primary);"><i class="fas fa-users me-2"></i>Individual Passengers</h6>
+      {% for pd in passenger_details %}
+        <div class="p-2 mb-2 rounded-3" style="background:#f8f9fa;">
+          <div class="d-flex justify-content-between">
+            <span class="fw-semibold small">{{ pd.name }}</span>
+            <span class="badge rounded-2" style="background:#eef6ff;color:#1E3A5F;">Seat {{ pd.seat.seat_number }}</span>
+          </div>
+          <small class="text-muted">Age: {{ pd.age }} · Gender: {{ pd.get_gender_display }}</small>
+        </div>
+      {% endfor %}
+      {% endif %}
+
+      {% if passenger_pass %}
+      <div class="mt-3 p-3 rounded-3" style="background:#f0fff4;border:1px solid #bbf7d0;">
+        <div class="d-flex align-items-center gap-2">
+          <i class="fas fa-id-card text-success fa-lg"></i>
+          <div>
+            <div class="fw-bold small text-success">Active Bus Pass</div>
+            <div class="small text-muted">{{ passenger_pass.scheme.name }} · {{ passenger_pass.pass_number }} · Valid till {{ passenger_pass.valid_until|date:"d M Y" }}</div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Mark as verified button -->
+      {% if not ticket.is_verified %}
+      <form method="POST" action="{% url 'conductor:verify_ticket' %}" class="mt-3">
+        {% csrf_token %}
+        <input type="hidden" name="ticket_number" value="{{ ticket.ticket_number }}">
+        <button type="submit" class="btn w-100 rounded-3 fw-bold py-2"
+                style="background:#27AE60;color:#fff;border:none;">
+          <i class="fas fa-check-circle me-2"></i>Mark as Verified
+        </button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if result_type == 'pass' and bus_pass %}
+  <div class="result-card">
+    <div style="background:linear-gradient(135deg,#27AE60,#1abc9c);" class="p-4 text-white">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <div class="small opacity-75">Bus Pass</div>
+          <h4 class="fw-black mb-1">{{ bus_pass.pass_number }}</h4>
+          <div class="small opacity-75">{{ bus_pass.scheme.name }} — {{ bus_pass.scheme.get_scheme_type_display }}</div>
+        </div>
+        <span class="badge" style="background:{% if bus_pass.is_valid_today %}rgba(255,255,255,0.25){% else %}#dc3545{% endif %};border-radius:10px;padding:8px 16px;">
+          {% if bus_pass.is_valid_today %}✓ VALID{% else %}✗ {{ bus_pass.status }}{% endif %}
+        </span>
+      </div>
+    </div>
+    <div class="p-4">
+      <div class="data-row"><span class="data-label">Passenger</span><span class="data-value">{{ bus_pass.passenger.get_full_name }}</span></div>
+      <div class="data-row"><span class="data-label">Phone</span><span class="data-value">{{ bus_pass.passenger.phone|default:'—' }}</span></div>
+      {% if bus_pass.institution_name %}
+      <div class="data-row"><span class="data-label">Institution</span><span class="data-value">{{ bus_pass.institution_name }}</span></div>
+      {% endif %}
+      <div class="data-row"><span class="data-label">Valid From</span><span class="data-value">{{ bus_pass.valid_from|date:"d M Y" }}</span></div>
+      <div class="data-row"><span class="data-label">Valid Until</span><span class="data-value">{{ bus_pass.valid_until|date:"d M Y" }}</span></div>
+      <div class="data-row"><span class="data-label">Trips Used</span><span class="data-value">{{ bus_pass.trips_used }}</span></div>
+      <div class="data-row"><span class="data-label">Trips Remaining</span><span class="data-value">{{ bus_pass.trips_remaining }}</span></div>
+      {% if bus_pass.photo %}
+      <div class="text-center mt-3">
+        <img src="{{ bus_pass.photo.url }}" alt="Passenger Photo" class="rounded-circle shadow"
+             style="width:80px;height:80px;object-fit:cover;border:3px solid #27AE60;">
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if result_type == 'user' and found_user %}
+  <div class="result-card">
+    <div style="background:linear-gradient(135deg,#F39C12,#e67e22);" class="p-4 text-white">
+      <h4 class="fw-black mb-1">{{ found_user.get_full_name|default:found_user.username }}</h4>
+      <div class="small opacity-75">Phone: {{ found_user.phone }}</div>
+    </div>
+    <div class="p-4">
+      <div class="data-row"><span class="data-label">Email</span><span class="data-value">{{ found_user.email }}</span></div>
+      <div class="data-row"><span class="data-label">Role</span><span class="data-value">{{ found_user.get_role_display }}</span></div>
+      {% if passenger_pass %}
+      <div class="mt-3 p-3 rounded-3" style="background:#f0fff4;border:1px solid #bbf7d0;">
+        <div class="fw-bold small text-success"><i class="fas fa-id-card me-2"></i>Active Pass: {{ passenger_pass.pass_number }} — {{ passenger_pass.scheme.name }}</div>
+        <small class="text-muted">Valid till {{ passenger_pass.valid_until|date:"d M Y" }}</small>
+      </div>
+      {% endif %}
+      {% if recent_bookings %}
+      <h6 class="fw-bold mt-3 mb-2 small" style="color:var(--brand-primary);">Recent Bookings</h6>
+      {% for b in recent_bookings %}
+        <div class="d-flex justify-content-between small p-2 mb-1 rounded-3" style="background:#f8f9fa;">
+          <span class="fw-semibold">{{ b.schedule.route.route_name|truncatechars:28 }}</span>
+          <span class="text-muted">{{ b.schedule.travel_date|date:"d M Y" }}</span>
+        </div>
+      {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

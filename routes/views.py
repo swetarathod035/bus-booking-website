@@ -120,14 +120,65 @@ def home(request):
     return render(request, 'routes/home.html', context)
 
 
+def ensure_schedules_for_date(travel_date):
+    """Dynamically ensure active routes have schedules for the requested date."""
+    from buses.models import Bus, Driver
+
+    active_routes = Route.objects.filter(status='ACTIVE')
+    if not active_routes.exists():
+        return
+
+    existing_route_ids = set(Schedule.objects.filter(travel_date=travel_date).values_list('route_id', flat=True))
+
+    buses = list(Bus.objects.all())
+    drivers = list(Driver.objects.all())
+
+    if not buses:
+        bus, _ = Bus.objects.get_or_create(
+            bus_number='GJ-18-T-1001',
+            defaults={'bus_name': 'Anand Express', 'bus_type': 'AC', 'total_seats': 40, 'has_gps': True}
+        )
+        buses = [bus]
+
+    default_timings = [
+        ('06:00:00', '07:15:00'),
+        ('08:30:00', '09:45:00'),
+        ('11:00:00', '12:15:00'),
+        ('14:00:00', '15:15:00'),
+        ('16:30:00', '17:45:00'),
+        ('19:00:00', '20:15:00'),
+    ]
+
+    schedules_to_create = []
+    for idx, route in enumerate(active_routes):
+        if route.id not in existing_route_ids:
+            bus = buses[idx % len(buses)]
+            driver = drivers[idx % len(drivers)] if drivers else None
+            for dep, arr in default_timings:
+                schedules_to_create.append(Schedule(
+                    route=route,
+                    bus=bus,
+                    driver=driver,
+                    travel_date=travel_date,
+                    departure_time=dep,
+                    arrival_time=arr,
+                    available_seats=bus.total_seats,
+                    status='SCHEDULED',
+                ))
+
+    if schedules_to_create:
+        Schedule.objects.bulk_create(schedules_to_create)
+
+
 def search_buses(request):
-    """Search available bus schedules."""
+    """Search available bus schedules with Crowd Density and Smart Connecting Route suggestions."""
     source_code = request.GET.get('source', '')
     dest_code = request.GET.get('destination', '')
     travel_date_str = request.GET.get('date', '')
     num_seats = int(request.GET.get('seats', 1))
 
     schedules = []
+    connecting_routes = []
     source_stop = None
     dest_stop = None
     error = None
@@ -138,25 +189,98 @@ def search_buses(request):
             if travel_date < date.today():
                 error = "Please select today's or a future date."
             else:
-                source_stop = get_object_or_404(Stop, code=source_code)
-                dest_stop = get_object_or_404(Stop, code=dest_code)
+                source_stop = Stop.objects.filter(code=source_code).first()
+                dest_stop = Stop.objects.filter(code=dest_code).first()
 
-                # Find routes that include both stops in order
-                source_route_stops = RouteStop.objects.filter(stop=source_stop).values_list('route', 'stop_order')
-                dest_route_stops = RouteStop.objects.filter(stop=dest_stop).values_list('route', 'stop_order')
+                # Ensure active routes have schedules for this travel_date
+                ensure_schedules_for_date(travel_date)
 
-                valid_route_ids = []
-                for (r_id, s_order) in source_route_stops:
-                    for (r_id2, d_order) in dest_route_stops:
-                        if r_id == r_id2 and s_order < d_order:
-                            valid_route_ids.append(r_id)
+                # 1. Direct Routes matching source & destination stops
+                source_route_ids = set(RouteStop.objects.filter(stop=source_stop).values_list('route_id', flat=True)) if source_stop else set()
+                dest_route_ids = set(RouteStop.objects.filter(stop=dest_stop).values_list('route_id', flat=True)) if dest_stop else set()
+                common_route_ids = list(source_route_ids.intersection(dest_route_ids))
 
-                schedules = Schedule.objects.filter(
-                    route_id__in=valid_route_ids,
-                    travel_date=travel_date,
-                    status__in=['SCHEDULED', 'DELAYED'],
-                    available_seats__gte=num_seats,
-                ).select_related('route', 'bus', 'driver').order_by('departure_time')
+                direct_routes = []
+                if source_stop and dest_stop:
+                    direct_routes = list(Route.objects.filter(
+                        Q(source=source_stop, destination=dest_stop) | Q(source=dest_stop, destination=source_stop)
+                    ).values_list('id', flat=True))
+
+                valid_route_ids = list(set(common_route_ids + direct_routes))
+
+                if valid_route_ids:
+                    schedules = list(Schedule.objects.filter(
+                        route_id__in=valid_route_ids,
+                        travel_date=travel_date,
+                        status__in=['SCHEDULED', 'DELAYED'],
+                        available_seats__gte=num_seats,
+                    ).select_related('route', 'bus', 'driver').order_by('departure_time'))
+
+                # Attach Crowd Density Indicator to each direct schedule
+                for sch in schedules:
+                    total_seats = sch.bus.total_seats or 40
+                    avail_seats = sch.available_seats
+                    occ_pct = int(((total_seats - avail_seats) / max(1, total_seats)) * 100)
+                    
+                    if occ_pct > 85 or avail_seats <= 5:
+                        sch.crowd_label = "High Capacity (Red)"
+                        sch.crowd_class = "danger"
+                        sch.crowd_icon = "fa-user-slash"
+                    elif occ_pct > 50:
+                        sch.crowd_label = "Moderate Capacity (Yellow)"
+                        sch.crowd_class = "warning text-dark"
+                        sch.crowd_icon = "fa-user-clock"
+                    else:
+                        sch.crowd_label = "Low Capacity (Green - Seats Available)"
+                        sch.crowd_class = "success"
+                        sch.crowd_icon = "fa-user-check"
+
+                # 2. Smart Connecting Route Suggestion (if direct buses are few or 0)
+                if len(schedules) < 2 and source_stop and dest_stop and source_stop.id != dest_stop.id:
+                    # Major interchange hubs in Anand area
+                    interchange_codes = ['ANAND_BUS_STAND', 'VV_NAGAR', 'KARAMSAD', 'TOWN_HALL']
+                    interchange_stops = Stop.objects.filter(code__in=interchange_codes).exclude(id__in=[source_stop.id, dest_stop.id])
+
+                    for hub in interchange_stops:
+                        # Leg 1: Source -> Hub
+                        leg1_routes = Route.objects.filter(
+                            Q(source=source_stop, destination=hub) | Q(source=hub, destination=source_stop)
+                        ).values_list('id', flat=True)
+                        leg1_schedules = Schedule.objects.filter(
+                            route_id__in=leg1_routes, travel_date=travel_date, status__in=['SCHEDULED', 'DELAYED'], available_seats__gte=num_seats
+                        ).select_related('route', 'bus').order_by('departure_time')
+
+                        # Leg 2: Hub -> Destination
+                        leg2_routes = Route.objects.filter(
+                            Q(source=hub, destination=dest_stop) | Q(source=dest_stop, destination=hub)
+                        ).values_list('id', flat=True)
+                        leg2_schedules = Schedule.objects.filter(
+                            route_id__in=leg2_routes, travel_date=travel_date, status__in=['SCHEDULED', 'DELAYED'], available_seats__gte=num_seats
+                        ).select_related('route', 'bus').order_by('departure_time')
+
+                        for s1 in leg1_schedules:
+                            for s2 in leg2_schedules:
+                                # Ensure Leg 2 departs after Leg 1 arrives
+                                if s2.departure_time > s1.arrival_time:
+                                    t1_dt = datetime.datetime.combine(travel_date, s1.arrival_time)
+                                    t2_dt = datetime.datetime.combine(travel_date, s2.departure_time)
+                                    layover_mins = int((t2_dt - t1_dt).total_seconds() // 60)
+                                    
+                                    if 5 <= layover_mins <= 90:  # Reasonable transfer wait time
+                                        total_fare = float(s1.route.calculate_fare()) + float(s2.route.calculate_fare())
+                                        connecting_routes.append({
+                                            'leg1': s1,
+                                            'leg2': s2,
+                                            'transfer_stop': hub.name,
+                                            'layover_minutes': layover_mins,
+                                            'total_fare': round(total_fare, 2),
+                                        })
+                                        if len(connecting_routes) >= 3:
+                                            break
+                            if len(connecting_routes) >= 3:
+                                break
+                        if len(connecting_routes) >= 3:
+                            break
 
         except (ValueError, Exception) as e:
             error = str(e)
@@ -165,6 +289,7 @@ def search_buses(request):
     context = {
         'title': 'Search Results — AnandBus',
         'schedules': schedules,
+        'connecting_routes': connecting_routes,
         'source_stop': source_stop,
         'dest_stop': dest_stop,
         'source_code': source_code,

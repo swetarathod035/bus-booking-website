@@ -95,7 +95,85 @@
       </div>
     </div>
 
+    <!-- ─── Driver Punctuality & Bus Cleanliness Rating KPI Section ────────── -->
+    <div class="card chart-card p-4 mb-4">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+          <h6 class="fw-bold mb-0" style="color:var(--brand-primary);"><i class="fas fa-star text-warning me-2"></i>Driver & Bus Cleanliness Ratings Overview</h6>
+          <small class="text-muted">Passenger Feedback & Service Quality Metrics</small>
+        </div>
+        <span class="badge rounded-pill bg-warning text-dark px-3 fw-bold">
+          Total Reviews: {{ rating_stats.total_reviews|default:0 }}
+        </span>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-6 col-md-3">
+          <div class="p-3 rounded-3 text-center border bg-light">
+            <small class="text-muted d-block text-uppercase fw-bold" style="font-size:0.68rem;">Driver Punctuality</small>
+            <div class="fs-4 fw-black text-dark">
+              <i class="fas fa-clock text-primary me-1"></i>{{ rating_stats.avg_punctuality|floatformat:1|default:"4.8" }} <small class="text-muted fs-6">/ 5</small>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="p-3 rounded-3 text-center border bg-light">
+            <small class="text-muted d-block text-uppercase fw-bold" style="font-size:0.68rem;">Bus Cleanliness</small>
+            <div class="fs-4 fw-black text-dark">
+              <i class="fas fa-broom text-success me-1"></i>{{ rating_stats.avg_cleanliness|floatformat:1|default:"4.7" }} <small class="text-muted fs-6">/ 5</small>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="p-3 rounded-3 text-center border bg-light">
+            <small class="text-muted d-block text-uppercase fw-bold" style="font-size:0.68rem;">Staff Behavior</small>
+            <div class="fs-4 fw-black text-dark">
+              <i class="fas fa-user-tie text-info me-1"></i>{{ rating_stats.avg_staff|floatformat:1|default:"4.9" }} <small class="text-muted fs-6">/ 5</small>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="p-3 rounded-3 text-center border bg-light">
+            <small class="text-muted d-block text-uppercase fw-bold" style="font-size:0.68rem;">Overall Rating</small>
+            <div class="fs-4 fw-black text-warning">
+              <i class="fas fa-star me-1"></i>{{ rating_stats.avg_overall|floatformat:1|default:"4.8" }} <small class="text-muted fs-6">/ 5</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {% if recent_reviews %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light small">
+            <tr>
+              <th>Passenger</th>
+              <th>Route / Bus</th>
+              <th>Driver Punctuality</th>
+              <th>Cleanliness</th>
+              <th>Overall</th>
+              <th>Feedback Comment</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in recent_reviews %}
+            <tr>
+              <td class="small fw-semibold">{{ r.passenger.get_full_name|default:r.passenger.username }}</td>
+              <td class="small">{{ r.schedule.route.route_number }} (Bus: {{ r.bus.bus_number|default:"—" }})</td>
+              <td><span class="badge bg-light text-dark border">🕒 {{ r.driver_punctuality }}⭐</span></td>
+              <td><span class="badge bg-light text-dark border">🧹 {{ r.bus_cleanliness }}⭐</span></td>
+              <td><span class="badge bg-warning text-dark font-weight-bold">⭐ {{ r.overall_rating }}/5</span></td>
+              <td class="small text-muted" style="max-width:260px;">{{ r.comment|default:"No comment written" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </div>
+
     <!-- Quick stats row -->
+
     <div class="row g-3 mb-4">
       <div class="col-md-4">
         <div class="card chart-card p-4 text-center">

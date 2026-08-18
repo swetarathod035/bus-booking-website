@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block extra_css %}
+<style>
+.verifier-card { background:#fff; border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,0.08); padding:32px; max-width:640px; margin:2rem auto; }
+.pass-status-badge { font-size:1.1rem; padding:8px 16px; border-radius:30px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container py-5">
+  <div class="text-center mb-4">
+    <h2 class="fw-black mb-1" style="color:var(--brand-primary);"><i class="fas fa-qrcode me-2 text-primary"></i>Bus Pass Verifier</h2>
+    <p class="text-muted">Enter or scan Pass Number to check student & passenger pass validity in real-time</p>
+  </div>
+
+  <div class="verifier-card">
+    <form method="GET" action="{% url 'buses:pass_verifier' %}" class="mb-4">
+      <label class="form-label fw-bold small text-uppercase" style="letter-spacing:1px;color:#666;">Bus Pass Number</label>
+      <div class="input-group input-group-lg">
+        <input type="text" name="pass_number" value="{{ pass_number }}" class="form-control font-monospace fw-bold uppercase" placeholder="e.g. AB-STU-2608-ABC123" required style="letter-spacing:1px;">
+        <button type="submit" class="btn text-white fw-bold px-4" style="background:linear-gradient(135deg,#1E3A5F,#2980B9);">
+          <i class="fas fa-search me-2"></i>Verify Pass
+        </button>
+      </div>
+    </form>
+
+    {% if searched %}
+      {% if bus_pass %}
+        <div class="p-4 rounded-4 border {% if bus_pass.is_valid_today %}border-success bg-success-subtle{% else %}border-danger bg-danger-subtle{% endif %} text-center mb-4">
+          {% if bus_pass.is_valid_today %}
+            <span class="badge bg-success pass-status-badge mb-2"><i class="fas fa-check-circle me-2"></i>PASS VALID & ACTIVE</span>
+            <h4 class="fw-bold mb-0 text-success">{{ bus_pass.scheme.name }}</h4>
+          {% else %}
+            <span class="badge bg-danger pass-status-badge mb-2"><i class="fas fa-times-circle me-2"></i>PASS INVALID / {{ bus_pass.get_status_display|upper }}</span>
+            <h4 class="fw-bold mb-0 text-danger">{{ bus_pass.scheme.name }}</h4>
+          {% endif %}
+        </div>
+
+        <div class="row g-3 text-start border-top pt-3">
+          <div class="col-6">
+            <small class="text-muted d-block">Passenger Name</small>
+            <strong class="fs-6">{{ bus_pass.passenger.get_full_name|default:bus_pass.passenger.username }}</strong>
+          </div>
+          <div class="col-6">
+            <small class="text-muted d-block">Phone Number</small>
+            <strong>{{ bus_pass.passenger.phone|default:"—" }}</strong>
+          </div>
+          <div class="col-6">
+            <small class="text-muted d-block">Valid From</small>
+            <strong>{{ bus_pass.valid_from }}</strong>
+          </div>
+          <div class="col-6">
+            <small class="text-muted d-block">Valid Until</small>
+            <strong>{{ bus_pass.valid_until }}</strong>
+          </div>
+          <div class="col-6">
+            <small class="text-muted d-block">Institution / College</small>
+            <strong>{{ bus_pass.institution_name|default:"General Commuter" }}</strong>
+          </div>
+          <div class="col-6">
+            <small class="text-muted d-block">Trips Remaining</small>
+            <strong class="text-primary fs-5">{{ bus_pass.trips_remaining }}</strong>
+          </div>
+          {% if bus_pass.photo %}
+          <div class="col-12 text-center mt-3">
+            <img src="{{ bus_pass.photo.url }}" alt="Pass Photo" class="rounded-3 border shadow-sm" style="max-height:160px;">
+          </div>
+          {% endif %}
+        </div>
+      {% else %}
+        <div class="alert alert-warning rounded-4 text-center py-4 mb-0">
+          <i class="fas fa-exclamation-triangle fa-2x mb-2 text-warning d-block"></i>
+          <h5 class="fw-bold mb-1">Pass Not Found</h5>
+          <p class="mb-0 small text-muted">No bus pass matching number <code>{{ pass_number }}</code> was found in system database.</p>
+        </div>
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

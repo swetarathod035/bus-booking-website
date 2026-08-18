@@ -48,7 +48,7 @@ class Command(BaseCommand):
         from buses.models import Bus, Driver
         from accounts.models import ConductorProfile
 
-        self.stdout.write(self.style.MIGRATE_HEADING('🌱 Seeding AnandBus database...'))
+        self.stdout.write(self.style.MIGRATE_HEADING('[+] Seeding AnandBus database...'))
 
         # ── Stops ────────────────────────────────────────────────────────────
         self.stdout.write('Creating stops...')
@@ -59,7 +59,7 @@ class Command(BaseCommand):
                 defaults={'name': name, 'latitude': lat, 'longitude': lng, 'is_major': is_major}
             )
             stop_objects[code] = stop
-        self.stdout.write(self.style.SUCCESS(f'  ✓ {len(STOPS_DATA)} stops created'))
+        self.stdout.write(self.style.SUCCESS(f'  [OK] {len(STOPS_DATA)} stops created'))
 
         # ── Buses ─────────────────────────────────────────────────────────────
         self.stdout.write('Creating buses...')
@@ -81,7 +81,7 @@ class Command(BaseCommand):
             'total_seats': 25,
             'has_gps': True,
         })
-        self.stdout.write(self.style.SUCCESS('  ✓ 3 buses created'))
+        self.stdout.write(self.style.SUCCESS('  [OK] 3 buses created'))
 
         # ── Drivers ───────────────────────────────────────────────────────────
         self.stdout.write('Creating drivers...')
@@ -99,7 +99,7 @@ class Command(BaseCommand):
             'assigned_bus': bus2,
             'experience_years': 8,
         })
-        self.stdout.write(self.style.SUCCESS('  ✓ 2 drivers created'))
+        self.stdout.write(self.style.SUCCESS('  [OK] 2 drivers created'))
 
         # ── Routes ────────────────────────────────────────────────────────────
         self.stdout.write('Creating routes...')
@@ -154,7 +154,7 @@ class Command(BaseCommand):
                         fare_from_source=round(base + (dist_from_src * per_km), 2),
                     )
 
-        self.stdout.write(self.style.SUCCESS(f'  ✓ {len(routes_data)} routes created'))
+        self.stdout.write(self.style.SUCCESS(f'  [OK] {len(routes_data)} routes created'))
 
         # ── Schedules (next 7 days) ───────────────────────────────────────────
         self.stdout.write('Creating schedules...')
@@ -195,7 +195,7 @@ class Command(BaseCommand):
                     }
                 )
                 sched_count += 1
-        self.stdout.write(self.style.SUCCESS(f'  ✓ {sched_count} schedules created (7 days)'))
+        self.stdout.write(self.style.SUCCESS(f'  [OK] {sched_count} schedules created (7 days)'))
 
         # ── Users ─────────────────────────────────────────────────────────────
         self.stdout.write('Creating users...')
@@ -212,7 +212,7 @@ class Command(BaseCommand):
         if created:
             admin_user.set_password('Admin@123')
             admin_user.save()
-            self.stdout.write(self.style.SUCCESS('  ✓ SuperAdmin: admin / Admin@123'))
+            self.stdout.write(self.style.SUCCESS('  [OK] SuperAdmin: admin / Admin@123'))
         else:
             self.stdout.write('  - SuperAdmin already exists')
 
@@ -230,7 +230,7 @@ class Command(BaseCommand):
                 user=cond_user,
                 defaults={'employee_id': 'EMP0001', 'assigned_bus': bus1}
             )
-            self.stdout.write(self.style.SUCCESS('  ✓ Conductor: conductor1 / Conductor@123'))
+            self.stdout.write(self.style.SUCCESS('  [OK] Conductor: conductor1 / Conductor@123'))
 
         # Passenger
         pax_user, created = User.objects.get_or_create(username='passenger1', defaults={
@@ -243,11 +243,11 @@ class Command(BaseCommand):
         if created:
             pax_user.set_password('Passenger@123')
             pax_user.save()
-            self.stdout.write(self.style.SUCCESS('  ✓ Passenger: passenger1 / Passenger@123'))
+            self.stdout.write(self.style.SUCCESS('  [OK] Passenger: passenger1 / Passenger@123'))
 
         self.stdout.write('')
         self.stdout.write(self.style.SUCCESS('=' * 55))
-        self.stdout.write(self.style.SUCCESS('✅ AnandBus database seeded successfully!'))
+        self.stdout.write(self.style.SUCCESS('[OK] AnandBus database seeded successfully!'))
         self.stdout.write(self.style.SUCCESS('=' * 55))
         self.stdout.write(f'  Admin Dashboard  : http://127.0.0.1:8000/buses/admin/')
         self.stdout.write(f'  Django Admin     : http://127.0.0.1:8000/django-admin/')

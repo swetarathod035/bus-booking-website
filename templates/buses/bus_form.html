@@ -1,34 +1,148 @@
 {% extends 'base.html' %}
 {% block title %}{{ title }}{% endblock %}
-{% block extra_css %}<style>.admin-layout{display:flex;min-height:calc(100vh - 60px);}.admin-content{margin-left:260px;flex:1;padding:2rem;}.sidebar-link{display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:10px;color:rgba(255,255,255,0.75);text-decoration:none;font-size:0.875rem;transition:all 0.2s;margin-bottom:2px;}.sidebar-link:hover{background:rgba(255,255,255,0.12);color:#fff;}</style>{% endblock %}
+{% block extra_css %}
+<style>
+.admin-layout { display:flex; min-height:calc(100vh - 60px); }
+.admin-content { margin-left:260px; flex:1; padding:2rem; }
+.sidebar-link { display:flex; align-items:center; gap:10px; padding:10px 16px; border-radius:10px; color:rgba(255,255,255,0.75); text-decoration:none; font-size:0.875rem; transition:all 0.2s; margin-bottom:2px; }
+.sidebar-link:hover { background:rgba(255,255,255,0.12); color:#fff; }
+.form-section { background:#fff; border-radius:18px; padding:28px; box-shadow:0 4px 20px rgba(0,0,0,0.06); margin-bottom:24px; }
+.form-section-title { font-size:0.82rem; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:#888; margin-bottom:16px; padding-bottom:10px; border-bottom:2px solid #f0f0f0; }
+.form-control, .form-select { border-radius:10px; border:1.5px solid #e2e8f0; padding:0.65rem 1rem; }
+.form-control:focus, .form-select:focus { border-color:#1E3A5F; box-shadow:0 0 0 3px rgba(30,58,95,0.1); }
+.form-check-input:checked { background-color:#1E3A5F; border-color:#1E3A5F; }
+</style>
+{% endblock %}
 {% block content %}
 <div class="admin-layout">
   {% include 'partials/sidebar_admin.html' %}
   <div class="admin-content">
+    <!-- Header -->
     <div class="d-flex align-items-center gap-3 mb-4">
-      <a href="{% url 'buses:bus_list' %}" class="btn btn-sm btn-outline-secondary rounded-3"><i class="fas fa-arrow-left me-1"></i>Back</a>
-      <h4 class="fw-black mb-0" style="color:var(--brand-primary);">{{ title }}</h4>
+      <a href="{% url 'buses:bus_list' %}" class="btn rounded-3 btn-outline-secondary px-3">
+        <i class="fas fa-arrow-left me-1"></i>Back
+      </a>
+      <div>
+        <h4 class="fw-black mb-0" style="color:var(--brand-primary);">{{ title }}</h4>
+        <small class="text-muted">{% if bus %}Editing bus {{ bus.bus_number }}{% else %}Add a new bus to the fleet{% endif %}</small>
+      </div>
     </div>
-    <div class="card border-0 shadow-sm rounded-4 p-4" style="max-width:700px;">
-      <form method="POST" enctype="multipart/form-data">
-        {% csrf_token %}
+
+    <form method="POST" enctype="multipart/form-data" style="max-width:780px;" id="busForm">
+      {% csrf_token %}
+
+      <!-- Basic Info -->
+      <div class="form-section">
+        <div class="form-section-title"><i class="fas fa-id-card me-2"></i>Basic Information</div>
         <div class="row g-3">
-          {% for field in form %}
-            <div class="col-md-{% if field.field.widget.input_type == 'checkbox' %}12{% else %}6{% endif %}">
-              <label class="form-label fw-semibold small">{{ field.label }}</label>
-              {{ field }}
-              {% if field.errors %}<div class="invalid-feedback d-block small">{{ field.errors.0 }}</div>{% endif %}
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small">Bus Number <span class="text-danger">*</span></label>
+            {{ form.bus_number }}
+            {% if form.bus_number.errors %}<div class="text-danger small mt-1">{{ form.bus_number.errors.0 }}</div>{% endif %}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small">Bus Name <span class="text-danger">*</span></label>
+            {{ form.bus_name }}
+            {% if form.bus_name.errors %}<div class="text-danger small mt-1">{{ form.bus_name.errors.0 }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small">Bus Type</label>
+            {{ form.bus_type }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small">Total Seats</label>
+            {{ form.total_seats }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small">Status</label>
+            {{ form.status }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Technical Details -->
+      <div class="form-section">
+        <div class="form-section-title"><i class="fas fa-cog me-2"></i>Technical Details</div>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small">Manufacturer</label>
+            {{ form.manufacturer }}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small">Model Year</label>
+            {{ form.model_year }}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small">Registration Expiry</label>
+            {{ form.registration_expiry }}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small">Insurance Expiry</label>
+            {{ form.insurance_expiry }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Amenities -->
+      <div class="form-section">
+        <div class="form-section-title"><i class="fas fa-star me-2"></i>Amenities & Features</div>
+        <div class="row g-3">
+          <div class="col-6 col-md-3">
+            <div class="d-flex align-items-center gap-2 p-3 rounded-3" style="background:#f8f9fa;">
+              {{ form.has_wifi }}
+              <label class="form-check-label fw-semibold small" for="{{ form.has_wifi.id_for_label }}">
+                <i class="fas fa-wifi me-1 text-primary"></i>WiFi
+              </label>
             </div>
-          {% endfor %}
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="d-flex align-items-center gap-2 p-3 rounded-3" style="background:#f8f9fa;">
+              {{ form.has_ac }}
+              <label class="form-check-label fw-semibold small" for="{{ form.has_ac.id_for_label }}">
+                <i class="fas fa-snowflake me-1 text-info"></i>AC
+              </label>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="d-flex align-items-center gap-2 p-3 rounded-3" style="background:#f8f9fa;">
+              {{ form.has_charging }}
+              <label class="form-check-label fw-semibold small" for="{{ form.has_charging.id_for_label }}">
+                <i class="fas fa-bolt me-1 text-warning"></i>USB Charging
+              </label>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="d-flex align-items-center gap-2 p-3 rounded-3" style="background:#f8f9fa;">
+              {{ form.has_gps }}
+              <label class="form-check-label fw-semibold small" for="{{ form.has_gps.id_for_label }}">
+                <i class="fas fa-satellite me-1 text-success"></i>GPS
+              </label>
+            </div>
+          </div>
         </div>
-        <div class="mt-4 d-flex gap-3">
-          <button type="submit" class="btn rounded-3 fw-semibold px-5" style="background:#1E3A5F;color:#fff;border:none;">
-            <i class="fas fa-save me-2"></i>{{ action }} Bus
-          </button>
-          <a href="{% url 'buses:bus_list' %}" class="btn btn-outline-secondary rounded-3">Cancel</a>
-        </div>
-      </form>
-    </div>
+      </div>
+
+      <!-- Image -->
+      <div class="form-section">
+        <div class="form-section-title"><i class="fas fa-image me-2"></i>Bus Photo</div>
+        {% if bus and bus.image %}
+          <img src="{{ bus.image.url }}" alt="Bus image" class="rounded-3 mb-3" style="max-height:120px;">
+        {% endif %}
+        {{ form.image }}
+      </div>
+
+      <!-- Submit -->
+      <div class="d-flex gap-3 align-items-center">
+        <button type="submit" class="btn rounded-3 fw-bold px-5 py-2"
+                style="background:linear-gradient(135deg,#1E3A5F,#2980B9);color:#fff;border:none;font-size:0.95rem;">
+          <i class="fas fa-save me-2"></i>
+          {% if action == 'Add' %}Add Bus to Fleet{% else %}Save Changes{% endif %}
+        </button>
+        <a href="{% url 'buses:bus_list' %}" class="btn btn-outline-secondary rounded-3 px-4 py-2 fw-semibold">
+          <i class="fas fa-times me-2"></i>Cancel
+        </a>
+      </div>
+    </form>
   </div>
 </div>
 {% endblock %}

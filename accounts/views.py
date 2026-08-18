@@ -85,6 +85,27 @@ def change_password(request):
     return render(request, 'accounts/change_password.html', {'form': form, 'title': 'Change Password'})
 
 
+from django.http import JsonResponse, HttpResponseForbidden
+from django.views.decorators.http import require_POST
+from .models import CustomUser, Notification
+
+
+@login_required
+@require_POST
+def mark_notifications_read(request):
+    """Mark all unread notifications for current user as read."""
+    Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+    return JsonResponse({'success': True, 'unread_count': 0})
+
+
+@login_required
+@require_POST
+def clear_notifications(request):
+    """Clear all notifications for current user."""
+    Notification.objects.filter(user=request.user).delete()
+    return JsonResponse({'success': True})
+
+
 # ─── Error Handlers ───────────────────────────────────────────────────────────
 def handler_403(request, exception=None):
     return render(request, 'errors/403.html', status=403)
@@ -96,3 +117,4 @@ def handler_404(request, exception=None):
 
 def handler_500(request):
     return render(request, 'errors/500.html', status=500)
+

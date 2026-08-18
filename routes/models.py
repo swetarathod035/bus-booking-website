@@ -30,7 +30,7 @@ ANAND_STOPS = [
 
 class Stop(models.Model):
     """A bus stop / location in Anand area."""
-    code = models.CharField(max_length=30, unique=True, choices=ANAND_STOPS)
+    code = models.CharField(max_length=50, unique=True)
     name = models.CharField(max_length=100)
     latitude = models.DecimalField(max_digits=10, decimal_places=7, blank=True, null=True)
     longitude = models.DecimalField(max_digits=10, decimal_places=7, blank=True, null=True)

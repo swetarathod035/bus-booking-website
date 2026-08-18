@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block extra_css %}
+<style>
+.admin-layout { display:flex; min-height:calc(100vh - 60px); }
+.admin-content { margin-left:260px; flex:1; padding:2rem; }
+.sidebar-link { display:flex; align-items:center; gap:10px; padding:10px 16px; border-radius:10px; color:rgba(255,255,255,0.75); text-decoration:none; font-size:0.875rem; transition:all 0.2s; margin-bottom:2px; }
+.sidebar-link:hover { background:rgba(255,255,255,0.12); color:#fff; }
+.table-card { background:#fff; border-radius:18px; padding:24px; box-shadow:0 4px 20px rgba(0,0,0,0.06); }
+</style>
+{% endblock %}
+{% block content %}
+<div class="admin-layout">
+  {% include 'partials/sidebar_admin.html' %}
+  <div class="admin-content">
+    <div class="d-flex align-items-center justify-content-between mb-4">
+      <div>
+        <h4 class="fw-black mb-1" style="color:var(--brand-primary);"><i class="fas fa-map-marker-alt me-2 text-danger"></i>Manage Bus Stops</h4>
+        <p class="text-muted small mb-0">Total stops registered in Anand city network: {{ stops|length }}</p>
+      </div>
+      <a href="{% url 'buses:stop_create' %}" class="btn text-white rounded-3 px-4 py-2 fw-bold" style="background:linear-gradient(135deg,#1E3A5F,#2980B9);">
+        <i class="fas fa-plus me-2"></i>Add Bus Stop
+      </a>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="mb-4">
+      <form method="GET" class="d-flex gap-2" style="max-width:480px;">
+        <input type="text" name="q" value="{{ query }}" class="form-control rounded-3" placeholder="Search by name, code, or location...">
+        <button type="submit" class="btn btn-primary rounded-3 px-3"><i class="fas fa-search"></i></button>
+        {% if query %}
+        <a href="{% url 'buses:stop_list' %}" class="btn btn-outline-secondary rounded-3 px-3">Clear</a>
+        {% endif %}
+      </form>
+    </div>
+
+    <div class="table-card">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>#</th>
+              <th>Stop Code</th>
+              <th>Stop Name</th>
+              <th>Coordinates</th>
+              <th>Type</th>
+              <th>Address</th>
+              <th class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for stop in stops %}
+            <tr>
+              <td>{{ forloop.counter }}</td>
+              <td><span class="badge bg-secondary font-monospace">{{ stop.code }}</span></td>
+              <td class="fw-bold">{{ stop.name }}</td>
+              <td>
+                {% if stop.latitude and stop.longitude %}
+                  <small class="text-muted"><i class="fas fa-location-arrow text-primary me-1"></i>{{ stop.latitude }}, {{ stop.longitude }}</small>
+                {% else %}
+                  <span class="text-muted small">—</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if stop.is_major %}
+                  <span class="badge bg-warning text-dark"><i class="fas fa-star me-1"></i>Major Hub</span>
+                {% else %}
+                  <span class="badge bg-light text-dark border">Regular</span>
+                {% endif %}
+              </td>
+              <td class="small text-muted">{{ stop.address|default:"—"|truncatewords:6 }}</td>
+              <td class="text-end">
+                <div class="btn-group">
+                  <a href="{% url 'buses:stop_edit' stop.pk %}" class="btn btn-sm btn-outline-primary rounded-start-3" title="Edit">
+                    <i class="fas fa-edit"></i>
+                  </a>
+                  <form method="POST" action="{% url 'buses:stop_delete' stop.pk %}" onsubmit="return confirm('Delete bus stop {{ stop.name }}?');" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-end-3" title="Delete">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="7" class="text-center text-muted py-4">No bus stops found.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

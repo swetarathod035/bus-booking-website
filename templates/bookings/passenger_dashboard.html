@@ -3,100 +3,285 @@
 
 {% block title %}My Dashboard — AnandBus{% endblock %}
 
+{% block extra_css %}
+<style>
+/* ─── Dashboard Layout ─────────────────────────────────────────────── */
+.dash-stat-card {
+  border: none; border-radius: 18px;
+  padding: 20px 24px;
+  position: relative; overflow: hidden;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+.dash-stat-card:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(0,0,0,0.15); }
+.dash-stat-card .bg-icon {
+  position: absolute; right: -10px; bottom: -10px;
+  font-size: 5rem; opacity: 0.12;
+}
+.booking-row {
+  border: none; border-radius: 16px;
+  box-shadow: 0 3px 16px rgba(0,0,0,0.07);
+  transition: box-shadow 0.3s, transform 0.25s;
+  margin-bottom: 14px;
+  background: #fff;
+}
+.booking-row:hover { box-shadow: 0 8px 28px rgba(0,0,0,0.12); transform: translateY(-2px); }
+
+/* ─── Action Buttons ─────────────────────────────────────────────────── */
+.btn-view    { background: #eef6ff; color: #1E3A5F; border: none; border-radius: 10px; font-weight: 600; font-size: 0.8rem; padding: 6px 14px; }
+.btn-view:hover { background: #1E3A5F; color: #fff; }
+.btn-pdf     { background: #f0fff4; color: #27AE60; border: none; border-radius: 10px; font-weight: 600; font-size: 0.8rem; padding: 6px 14px; }
+.btn-pdf:hover { background: #27AE60; color: #fff; }
+.btn-track   { background: #FF6B35; color: #fff; border: none; border-radius: 10px; font-weight: 600; font-size: 0.8rem; padding: 6px 14px; }
+.btn-track:hover { background: #e55a24; }
+.btn-cancel  { background: #fff0f0; color: #dc3545; border: 1px solid #f5c2c7; border-radius: 10px; font-weight: 600; font-size: 0.8rem; padding: 6px 14px; }
+.btn-cancel:hover { background: #dc3545; color: #fff; border-color: #dc3545; }
+
+/* ─── Pass Card ─────────────────────────────────────────────────────── */
+.pass-card { border: none; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+.pass-card-header { background: linear-gradient(135deg, #1E3A5F, #2980B9); padding: 14px 18px; color: #fff; }
+.pass-valid-badge { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.35); border-radius: 20px; padding: 3px 12px; font-size: 0.75rem; }
+
+/* ─── Chart Card ─────────────────────────────────────────────────────── */
+.chart-card { border: none; border-radius: 18px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); padding: 24px; background: #fff; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container py-4">
-  <!-- Header -->
-  <div class="d-flex align-items-center gap-3 mb-4">
-    <div class="rounded-circle d-flex align-items-center justify-content-center fw-black text-white"
-         style="width:60px;height:60px;background:linear-gradient(135deg,#1E3A5F,#2980B9);font-size:1.3rem;">
+
+  <!-- ─── STUDENT PASS RENEWAL ALERT BANNER ────────────────────────────── -->
+  {% if renewal_alert %}
+  <div class="alert alert-warning border-0 rounded-4 shadow-sm p-3 mb-4 d-flex align-items-center justify-content-between gap-3 animate__animated animate__headShake">
+    <div class="d-flex align-items-center gap-3">
+      <div class="rounded-circle bg-warning text-dark d-flex align-items-center justify-content-center fw-bold" style="width:44px;height:44px;min-width:44px;">
+        <i class="fas fa-clock-rotate-left fs-5"></i>
+      </div>
+      <div>
+        <h6 class="fw-bold mb-0 text-dark"><i class="fas fa-bell me-1 text-danger"></i>Student Bus Pass Renewal Alert!</h6>
+        <small class="text-dark">Your <strong>{{ renewal_alert.scheme_name }} (#{{ renewal_alert.pass_number }})</strong> expires in <strong>{{ renewal_alert.days_left }} day{{ renewal_alert.days_left|pluralize }}</strong> on {{ renewal_alert.valid_until|date:"d M Y" }}. Renew now to keep commuting without interruption.</small>
+      </div>
+    </div>
+    <a href="{% url 'passes:student_pass' %}" class="btn btn-warning fw-bold rounded-pill px-4 flex-shrink-0">
+      <i class="fas fa-arrows-rotate me-1"></i>Renew Pass Now
+    </a>
+  </div>
+  {% endif %}
+
+  <!-- ─── Header ──────────────────────────────────────────────────────── -->
+  <div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
+    <div class="rounded-circle d-flex align-items-center justify-content-center fw-black text-white flex-shrink-0"
+         style="width:56px;height:56px;background:linear-gradient(135deg,#1E3A5F,#2980B9);font-size:1.2rem;">
       {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
     </div>
     <div>
-      <h3 class="mb-0 fw-black" style="color:var(--brand-primary);">Welcome, {{ user.first_name }}!</h3>
+      <h3 class="mb-0 fw-black" style="color:var(--brand-primary);">Welcome back, {{ user.first_name|default:user.username }}!</h3>
       <small class="text-muted"><i class="fas fa-envelope me-1"></i>{{ user.email }}</small>
     </div>
-    <a href="{% url 'routes:search' %}" class="btn ms-auto rounded-3 fw-semibold"
-       style="background:linear-gradient(135deg,#FF6B35,#e55a24);color:#fff;border:none;">
-      <i class="fas fa-plus me-2"></i>Book New Trip
-    </a>
+    <div class="ms-auto d-flex gap-2 flex-wrap">
+      <a href="{% url 'passes:my_passes' %}" class="btn rounded-3 fw-semibold btn-outline-primary px-4">
+        <i class="fas fa-id-card me-2"></i>My Passes
+      </a>
+      <a href="{% url 'routes:search' %}" class="btn rounded-3 fw-semibold px-4 text-white"
+         style="background:linear-gradient(135deg,#FF6B35,#e55a24);border:none;">
+        <i class="fas fa-plus me-2"></i>Book New Trip
+      </a>
+    </div>
   </div>
 
-  <!-- Stats -->
+  <!-- ─── CARBON FOOTPRINT SAVER METRIC REPORT CARD ──────────────────────── -->
+  <div class="card border-0 rounded-4 p-4 mb-4 shadow-sm" style="background: linear-gradient(135deg, #10B981 0%, #059669 100%); color: #fff;">
+    <div class="row align-items-center g-3">
+      <div class="col-md-8">
+        <div class="d-flex align-items-center gap-3">
+          <div class="rounded-circle bg-white text-success d-flex align-items-center justify-content-center shadow-sm" style="width:54px;height:54px;min-width:54px;">
+            <i class="fas fa-leaf fa-2x"></i>
+          </div>
+          <div>
+            <h5 class="fw-bold mb-1"><i class="fas fa-seedling me-2"></i>Carbon Footprint Saver Metric</h5>
+            <p class="small mb-0 opacity-90">By choosing AnandBus public transit over personal cars, you have actively reduced carbon emissions in Anand district!</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4 text-md-end">
+        <div class="d-flex justify-content-md-end gap-3">
+          <div class="bg-white text-dark rounded-3 p-2 px-3 text-center shadow-sm">
+            <small class="text-muted d-block text-uppercase fw-bold" style="font-size:0.68rem;">CO₂ Saved</small>
+            <span class="fw-black fs-4 text-success" data-i18n="CO2 Saved">{{ eco_stats.co2_saved_kg|default:"14.2" }} kg</span>
+          </div>
+          <div class="bg-white text-dark rounded-3 p-2 px-3 text-center shadow-sm">
+            <small class="text-muted d-block text-uppercase fw-bold" style="font-size:0.68rem;">Trees Equivalent 🌳</small>
+            <span class="fw-black fs-4 text-primary">{{ eco_stats.trees_equivalent|default:"0.7" }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Stats Cards ──────────────────────────────────────────────────── -->
   <div class="row g-3 mb-4">
     <div class="col-6 col-md-3">
-      <div class="card border-0 rounded-4 text-center p-3" style="background:linear-gradient(135deg,#1E3A5F,#2980B9);color:#fff;">
-        <div class="fs-2 fw-black">{{ upcoming_bookings|length }}</div>
-        <small>Upcoming Trips</small>
+      <div class="dash-stat-card" style="background:linear-gradient(135deg,#1E3A5F,#2980B9);color:#fff;">
+        <div class="fw-black" style="font-size:2rem;">{{ upcoming_bookings|length }}</div>
+        <div class="small opacity-75">Upcoming Trips</div>
+        <i class="fas fa-bus bg-icon"></i>
       </div>
     </div>
     <div class="col-6 col-md-3">
-      <div class="card border-0 rounded-4 text-center p-3" style="background:linear-gradient(135deg,#27AE60,#1abc9c);color:#fff;">
-        <div class="fs-2 fw-black">{{ past_bookings|length }}</div>
-        <small>Past Trips</small>
+      <div class="dash-stat-card" style="background:linear-gradient(135deg,#27AE60,#1abc9c);color:#fff;">
+        <div class="fw-black" style="font-size:2rem;">{{ total_bookings }}</div>
+        <div class="small opacity-75">Total Bookings</div>
+        <i class="fas fa-ticket-alt bg-icon"></i>
       </div>
     </div>
     <div class="col-6 col-md-3">
-      <div class="card border-0 rounded-4 text-center p-3" style="background:linear-gradient(135deg,#F39C12,#e67e22);color:#fff;">
-        <div class="fs-2 fw-black">{{ user.passenger_profile.loyalty_points|default:0 }}</div>
-        <small>Loyalty Points</small>
+      <div class="dash-stat-card" style="background:linear-gradient(135deg,#F39C12,#e67e22);color:#fff;">
+        <div class="fw-black" style="font-size:2rem;">{{ user.passenger_profile.loyalty_points|default:0 }}</div>
+        <div class="small opacity-75">Loyalty Points</div>
+        <i class="fas fa-star bg-icon"></i>
       </div>
     </div>
     <div class="col-6 col-md-3">
-      <div class="card border-0 rounded-4 text-center p-3" style="background:linear-gradient(135deg,#9B59B6,#8e44ad);color:#fff;">
-        <div class="fs-2 fw-black">✓</div>
-        <small>Verified Account</small>
+      <div class="dash-stat-card" style="background:linear-gradient(135deg,#9B59B6,#8e44ad);color:#fff;">
+        <div class="fw-black" style="font-size:2rem;">{{ active_passes|length }}</div>
+        <div class="small opacity-75">Active Passes</div>
+        <i class="fas fa-id-card bg-icon"></i>
       </div>
     </div>
   </div>
 
-  <!-- Upcoming Bookings -->
-  <h5 class="fw-bold mb-3" style="color:var(--brand-primary);"><i class="fas fa-calendar-check me-2"></i>Upcoming Trips</h5>
-  {% if upcoming_bookings %}
-    {% for booking in upcoming_bookings %}
-    <div class="card border-0 shadow-sm rounded-4 mb-3">
-      <div class="card-body p-4">
-        <div class="row align-items-center g-3">
-          <div class="col-md-4">
-            <div class="d-flex align-items-center gap-2">
-              <div class="rounded-3 d-flex align-items-center justify-content-center"
-                   style="width:44px;height:44px;background:#eef6ff;">
-                <i class="fas fa-bus" style="color:#1E3A5F;"></i>
-              </div>
-              <div>
-                <div class="fw-bold small">{{ booking.schedule.route.route_name }}</div>
-                <small class="badge bg-warning text-dark me-1">PNR: {{ booking.short_id }}</small>
-                <small class="text-muted">{{ booking.schedule.bus.bus_name }}</small>
-              </div>
+  <div class="row g-4 mb-4">
+    <!-- ─── Linear Booking Graph ────────────────────────────────────────── -->
+    <div class="col-lg-8">
+      <div class="chart-card">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <h6 class="fw-bold mb-0" style="color:var(--brand-primary);">My Bookings Activity</h6>
+            <small class="text-muted">Last 14 days</small>
+          </div>
+          <span class="badge" style="background:#eef6ff;color:#1E3A5F;font-size:0.75rem;">Linear View</span>
+        </div>
+        <canvas id="bookingLineChart" height="100"></canvas>
+      </div>
+    </div>
 
+    <!-- ─── Active Passes ────────────────────────────────────────────────── -->
+    <div class="col-lg-4">
+      <div class="chart-card">
+        <h6 class="fw-bold mb-3" style="color:var(--brand-primary);">
+          <i class="fas fa-id-card me-2"></i>Active Bus Passes
+        </h6>
+        {% if active_passes %}
+          {% for pass in active_passes %}
+          <div class="pass-card mb-3">
+            <div class="pass-card-header d-flex justify-content-between align-items-center">
+              <div>
+                <div class="fw-bold small">{{ pass.scheme.title|default:"Bus Pass" }}</div>
+                <div class="pass-valid-badge">{{ pass.pass_number }}</div>
+              </div>
+              <span class="badge" style="background:#27AE60;border-radius:8px;">ACTIVE</span>
+            </div>
+            <div class="p-3 small">
+              <div class="d-flex justify-content-between mb-1">
+                <span class="text-muted">Valid Until</span>
+                <span class="fw-semibold">{{ pass.valid_until|date:"d M Y" }}</span>
+              </div>
             </div>
           </div>
+          {% endfor %}
+        {% else %}
+          <div class="text-center py-3 text-muted">
+            <i class="fas fa-id-card fa-2x mb-2 opacity-25"></i>
+            <p class="small mb-2">No active passes.</p>
+            <a href="{% url 'passes:student_pass' %}" class="btn btn-sm btn-outline-primary rounded-3">
+              <i class="fas fa-plus me-1"></i>Apply Student Pass
+            </a>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Upcoming Bookings ──────────────────────────────────────────────── -->
+  <h5 class="fw-bold mb-3" style="color:var(--brand-primary);">
+    <i class="fas fa-calendar-check me-2"></i>Upcoming Trips
+    <span class="badge ms-2 fw-normal" style="background:#eef6ff;color:#1E3A5F;">{{ upcoming_bookings|length }}</span>
+  </h5>
+
+  {% if upcoming_bookings %}
+    {% for booking in upcoming_bookings %}
+    <div class="booking-row">
+      <div class="card-body p-3 p-md-4">
+        <div class="row align-items-center g-3">
+          <!-- Route info -->
+          <div class="col-md-4">
+            <div class="d-flex align-items-center gap-3">
+              <div class="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
+                   style="width:46px;height:46px;background:linear-gradient(135deg,#eef6ff,#dde8ff);">
+                <i class="fas fa-bus" style="color:#1E3A5F;font-size:1.1rem;"></i>
+              </div>
+              <div>
+                <div class="fw-bold small">{{ booking.schedule.route.route_name|truncatechars:32 }}</div>
+                <div class="d-flex align-items-center gap-2 mt-1">
+                  <span class="badge rounded-2" style="background:#fff8e6;color:#b8860b;font-size:0.68rem;font-weight:700;">
+                    PNR: {{ booking.short_id }}
+                  </span>
+                  <small class="text-muted">{{ booking.schedule.bus.bus_name }}</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Date/Time -->
           <div class="col-md-3">
-            <div class="fw-semibold">{{ booking.schedule.travel_date|date:"D, d M Y" }}</div>
-            <small class="text-muted">{{ booking.schedule.departure_time|time:"H:i" }} departure</small>
+            <div class="fw-semibold small">{{ booking.schedule.travel_date|date:"D, d M Y" }}</div>
+            <small class="text-muted">
+              <i class="fas fa-clock me-1"></i>{{ booking.schedule.departure_time|time:"H:i" }}
+            </small>
+            <div>
+              <small class="text-muted">
+                {{ booking.boarding_stop }} → {{ booking.alighting_stop }}
+              </small>
+            </div>
           </div>
+
+          <!-- Seats & Amount -->
           <div class="col-md-2">
-            <div class="fw-semibold">Seats: {% for s in booking.seats.all %}{{ s.seat_number }}{% if not forloop.last %},{% endif %}{% endfor %}</div>
-            <small class="text-muted">₹{{ booking.total_amount }}</small>
+            <div class="d-flex flex-wrap gap-1 mb-1">
+              {% for s in booking.seats.all %}
+                <span class="badge rounded-2" style="background:#f0f4ff;color:#1E3A5F;font-size:0.72rem;">{{ s.seat_number }}</span>
+              {% endfor %}
+            </div>
+            <div class="fw-black" style="color:#1E3A5F;">₹{{ booking.total_amount }}</div>
           </div>
-          <div class="col-md-3 text-md-end">
+
+          <!-- Status + Actions -->
+          <div class="col-md-3">
             <span class="badge rounded-pill mb-2
               {% if booking.status == 'CONFIRMED' %}bg-success
               {% elif booking.status == 'PENDING' %}bg-warning text-dark
               {% else %}bg-secondary{% endif %}">
+              {% if booking.status == 'CONFIRMED' %}<i class="fas fa-check-circle me-1"></i>{% endif %}
               {{ booking.status }}
             </span>
-            <div class="d-flex gap-2 justify-content-md-end flex-wrap">
-              <a href="{% url 'bookings:booking_detail' booking.booking_id %}" class="btn btn-sm btn-outline-primary rounded-2">
+            <div class="d-flex flex-wrap gap-1">
+              <a href="{% url 'bookings:booking_detail' booking.booking_id %}" class="btn btn-view">
                 <i class="fas fa-eye me-1"></i>View
               </a>
               {% if booking.status == 'CONFIRMED' %}
-                <a href="{% url 'bookings:download_ticket' booking.booking_id %}" class="btn btn-sm btn-outline-success rounded-2">
+                <a href="{% url 'bookings:download_ticket' booking.booking_id %}" class="btn btn-pdf">
                   <i class="fas fa-download me-1"></i>PDF
                 </a>
-                <a href="{% url 'tracking:live' booking.schedule.id %}" class="btn btn-sm rounded-2"
-                   style="background:#FF6B35;color:#fff;border:none;">
+                <a href="{% url 'tracking:live' booking.schedule.id %}" class="btn btn-track">
                   <i class="fas fa-map-marker-alt me-1"></i>Track
                 </a>
+              {% endif %}
+              {% if booking.status in 'CONFIRMED,PENDING' %}
+                <form method="POST" action="{% url 'bookings:cancel_booking' booking.booking_id %}"
+                      onsubmit="return confirm('Cancel this booking?')">
+                  {% csrf_token %}
+                  <input type="hidden" name="reason" value="Cancelled by passenger">
+                  <button type="submit" class="btn btn-cancel"><i class="fas fa-times me-1"></i>Cancel</button>
+                </form>
               {% endif %}
             </div>
           </div>
@@ -105,34 +290,41 @@
     </div>
     {% endfor %}
   {% else %}
-    <div class="text-center py-4 text-muted">
-      <i class="fas fa-ticket-alt fa-3x mb-3"></i>
-      <p>No upcoming trips. <a href="{% url 'routes:search' %}">Book your first bus!</a></p>
+    <div class="text-center py-5 text-muted">
+      <i class="fas fa-ticket-alt fa-3x mb-3 opacity-25"></i>
+      <p class="mb-3">No upcoming trips.</p>
+      <a href="{% url 'routes:search' %}" class="btn rounded-3 px-4 fw-semibold"
+         style="background:linear-gradient(135deg,#1E3A5F,#2980B9);color:#fff;border:none;">
+        <i class="fas fa-search me-2"></i>Search Buses
+      </a>
     </div>
   {% endif %}
 
-  <!-- Past Bookings -->
+  <!-- ─── Past Bookings ─────────────────────────────────────────────────── -->
   {% if past_bookings %}
-    <h5 class="fw-bold mb-3 mt-4" style="color:var(--brand-primary);"><i class="fas fa-history me-2"></i>Past Trips</h5>
-    <div class="table-responsive">
-      <table class="table table-hover align-middle rounded-4 overflow-hidden" style="border-collapse:separate;border-spacing:0;">
-        <thead style="background:#f8f9fa;">
+    <h5 class="fw-bold mb-3 mt-4" style="color:var(--brand-primary);">
+      <i class="fas fa-history me-2"></i>Past Trips & Ratings
+    </h5>
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+      <table class="table table-hover align-middle mb-0">
+        <thead style="background:#f8f9fa;font-size:0.8rem;">
           <tr>
-            <th class="py-3 ps-3">Booking ID</th>
+            <th class="py-3 ps-4">Booking ID</th>
             <th>Route</th>
             <th>Date</th>
             <th>Amount</th>
             <th>Status</th>
-            <th>Actions</th>
+            <th>Rating & Feedback</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody>
           {% for booking in past_bookings %}
           <tr>
-            <td class="ps-3 fw-mono">{{ booking.short_id }}</td>
-            <td>{{ booking.schedule.route.route_name|truncatechars:30 }}</td>
-            <td>{{ booking.schedule.travel_date|date:"d M Y" }}</td>
-            <td>₹{{ booking.total_amount }}</td>
+            <td class="ps-4"><code class="small fw-semibold">{{ booking.short_id }}</code></td>
+            <td class="small">{{ booking.schedule.route.route_name|truncatechars:28 }}</td>
+            <td class="small">{{ booking.schedule.travel_date|date:"d M Y" }}</td>
+            <td class="fw-semibold small">₹{{ booking.total_amount }}</td>
             <td>
               <span class="badge rounded-pill
                 {% if booking.status == 'COMPLETED' %}bg-success
@@ -143,15 +335,214 @@
               </span>
             </td>
             <td>
-              <a href="{% url 'bookings:booking_detail' booking.booking_id %}" class="btn btn-sm btn-outline-secondary rounded-2">
+              {% if booking.ride_rating %}
+                <span class="badge bg-warning text-dark fw-bold rounded-pill px-3 py-1">
+                  <i class="fas fa-star me-1"></i>Rated {{ booking.ride_rating.overall_rating }}/5
+                </span>
+                <small class="text-muted d-block mt-1" style="font-size:0.72rem;">
+                  Punctuality: {{ booking.ride_rating.driver_punctuality }}⭐ | Cleanliness: {{ booking.ride_rating.bus_cleanliness }}⭐
+                </small>
+              {% else %}
+                <button type="button" class="btn btn-sm btn-warning fw-bold rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#rateRideModal{{ booking.booking_id }}">
+                  <i class="fas fa-star me-1"></i>Rate your Ride
+                </button>
+              {% endif %}
+            </td>
+            <td>
+              <a href="{% url 'bookings:booking_detail' booking.booking_id %}" class="btn btn-view btn-sm">
                 <i class="fas fa-eye"></i>
               </a>
             </td>
           </tr>
+
+          <!-- ─── MODAL: RATE YOUR RIDE ────────────────────────────────────── -->
+          <div class="modal fade" id="rateRideModal{{ booking.booking_id }}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+              <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden">
+                <div class="modal-header border-0 text-white p-4" style="background:linear-gradient(135deg,#1E3A5F,#2980B9) !important;">
+                  <h5 class="modal-title fw-bold"><i class="fas fa-star text-warning me-2"></i>Rate your Ride — PNR #{{ booking.short_id }}</h5>
+                  <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="POST" action="{% url 'bookings:submit_ride_rating' booking.booking_id %}">
+                  {% csrf_token %}
+                  <div class="modal-body p-4 text-start">
+                    <p class="small text-muted mb-3">Rate driver punctuality and bus cleanliness to help us deliver the best bus commute experience in Anand district.</p>
+                    
+                    <div class="mb-3">
+                      <label class="form-label fw-bold small text-dark"><i class="fas fa-clock text-primary me-1"></i>Driver Punctuality</label>
+                      <select name="driver_punctuality" class="form-select rounded-3 shadow-none fw-semibold">
+                        <option value="5" selected>⭐⭐⭐⭐⭐ 5 Stars - Punctual & On-Time Arrival</option>
+                        <option value="4">⭐⭐⭐⭐ 4 Stars - On Time / Minor Delay (< 5 min)</option>
+                        <option value="3">⭐⭐⭐ 3 Stars - Moderate Delay (5-15 min)</option>
+                        <option value="2">⭐⭐ 2 Stars - Significant Delay</option>
+                        <option value="1">⭐ 1 Star - Unacceptable Delay</option>
+                      </select>
+                    </div>
+
+                    <div class="mb-3">
+                      <label class="form-label fw-bold small text-dark"><i class="fas fa-broom text-success me-1"></i>Bus Cleanliness & Hygiene</label>
+                      <select name="bus_cleanliness" class="form-select rounded-3 shadow-none fw-semibold">
+                        <option value="5" selected>⭐⭐⭐⭐⭐ 5 Stars - Sparkling Clean & Well Maintained</option>
+                        <option value="4">⭐⭐⭐⭐ 4 Stars - Clean & Neat</option>
+                        <option value="3">⭐⭐⭐ 3 Stars - Acceptable Cleanliness</option>
+                        <option value="2">⭐⭐ 2 Stars - Needs Sweeping / Washing</option>
+                        <option value="1">⭐ 1 Star - Dirty / Dusty Bus</option>
+                      </select>
+                    </div>
+
+                    <div class="mb-3">
+                      <label class="form-label fw-bold small text-dark"><i class="fas fa-user-tie text-info me-1"></i>Staff & Conductor Behavior</label>
+                      <select name="staff_behavior" class="form-select rounded-3 shadow-none fw-semibold">
+                        <option value="5" selected>⭐⭐⭐⭐⭐ 5 Stars - Polite, Courteous & Helpful</option>
+                        <option value="4">⭐⭐⭐⭐ 4 Stars - Good Behavior</option>
+                        <option value="3">⭐⭐⭐ 3 Stars - Normal</option>
+                        <option value="2">⭐⭐ 2 Stars - Unhelpful</option>
+                        <option value="1">⭐ 1 Star - Rude / Unprofessional</option>
+                      </select>
+                    </div>
+
+                    <div class="mb-3">
+                      <label class="form-label fw-bold small text-dark"><i class="fas fa-thumbs-up text-warning me-1"></i>Overall Trip Rating</label>
+                      <select name="overall_rating" class="form-select rounded-3 shadow-none fw-bold">
+                        <option value="5" selected>⭐⭐⭐⭐⭐ 5 / 5 - Excellent Experience</option>
+                        <option value="4">⭐⭐⭐⭐ 4 / 5 - Good Experience</option>
+                        <option value="3">⭐⭐⭐ 3 / 5 - Average</option>
+                        <option value="2">⭐⭐ 2 / 5 - Needs Improvement</option>
+                        <option value="1">⭐ 1 / 5 - Poor Experience</option>
+                      </select>
+                    </div>
+
+                    <div class="mb-3">
+                      <label class="form-label fw-bold small text-dark">Feedback & Comments (Optional)</label>
+                      <textarea name="comment" class="form-control rounded-3 shadow-none" rows="3" placeholder="Share specific thoughts on driver skill, bus AC/sanitation, seating, or journey smoothness..."></textarea>
+                    </div>
+
+                  </div>
+                  <div class="modal-footer border-0 bg-light p-3">
+                    <button type="button" class="btn btn-light border rounded-3 fw-semibold" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning rounded-3 fw-bold px-4"><i class="fas fa-paper-plane me-1"></i>Submit Feedback</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
           {% endfor %}
         </tbody>
       </table>
     </div>
   {% endif %}
+
+
 </div>
+
+<!-- ─── MODAL: STUDENT PASS RENEWAL URGENT POP-UP ──────────────────────────── -->
+{% if renewal_alert %}
+<div class="modal fade" id="passRenewalModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden">
+      <div class="modal-header border-0 bg-warning text-dark p-4">
+        <h5 class="modal-title fw-black"><i class="fas fa-bell me-2 text-danger animate__animated animate__swing animate__infinite"></i>Student Pass Expiry Warning!</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4 text-center">
+        <div class="rounded-circle bg-warning-subtle text-warning-emphasis d-inline-flex align-items-center justify-content-center mb-3" style="width:72px;height:72px;">
+          <i class="fas fa-clock-rotate-left fa-2x"></i>
+        </div>
+        <h5 class="fw-bold text-dark mb-2">Renew Pass #{{ renewal_alert.pass_number }}</h5>
+        <p class="text-muted small mb-3">Your <strong>{{ renewal_alert.scheme_name }}</strong> is expiring in <strong class="text-danger fs-5">{{ renewal_alert.days_left }} day{{ renewal_alert.days_left|pluralize }}</strong> on {{ renewal_alert.valid_until|date:"d M Y" }}.</p>
+        <p class="small text-muted mb-4">Renewing now ensures your student concession rates and digital QR ticket remain valid without travel interruption.</p>
+        
+        <div class="d-grid gap-2">
+          <a href="{% url 'passes:student_pass' %}" class="btn btn-warning btn-lg rounded-3 fw-bold">
+            <i class="fas fa-arrows-rotate me-2"></i>Renew Student Pass Now
+          </a>
+          <button type="button" class="btn btn-outline-secondary rounded-3" data-bs-dismiss="modal">Remind Me Later</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// ─── Linear Booking Activity Graph ─────────────────────────────────────
+const labels = {{ graph_labels|safe }};
+const data   = {{ graph_data|safe }};
+
+const ctx = document.getElementById('bookingLineChart');
+if (ctx) {
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Bookings',
+        data: data,
+        fill: true,
+        backgroundColor: function(context) {
+          const chart = context.chart;
+          const {ctx: c, chartArea} = chart;
+          if (!chartArea) return 'rgba(30,58,95,0.05)';
+          const gradient = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+          gradient.addColorStop(0,   'rgba(30,58,95,0.25)');
+          gradient.addColorStop(0.5, 'rgba(41,128,185,0.10)');
+          gradient.addColorStop(1,   'rgba(255,255,255,0)');
+          return gradient;
+        },
+        borderColor: '#1E3A5F',
+        borderWidth: 2.5,
+        pointBackgroundColor: '#FF6B35',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        tension: 0.45,  // Smooth curve
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1E3A5F',
+          titleColor: '#fff',
+          bodyColor: 'rgba(255,255,255,0.85)',
+          padding: 12,
+          cornerRadius: 10,
+          callbacks: {
+            label: ctx => ` ${ctx.parsed.y} Booking${ctx.parsed.y !== 1 ? 's' : ''}`,
+          }
+        },
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            stepSize: 1,
+            precision: 0,
+            color: '#888',
+          },
+          grid: { color: '#f0f0f0' },
+        },
+        x: {
+          ticks: { color: '#888', maxRotation: 0, font: { size: 10 } },
+          grid: { display: false },
+        },
+      },
+    },
+  });
+}
+document.addEventListener('DOMContentLoaded', function() {
+  {% if renewal_alert and show_renewal_modal %}
+    const renewalModal = new bootstrap.Modal(document.getElementById('passRenewalModal'));
+    renewalModal.show();
+  {% endif %}
+});
+</script>
 {% endblock %}

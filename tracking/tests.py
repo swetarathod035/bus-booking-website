@@ -51,3 +51,24 @@ class TrackingTestCase(TestCase):
         self.assertTrue(data['success'])
         self.assertTrue(BusLocation.objects.filter(schedule=self.schedule).exists())
 
+    def test_api_search_schedule_by_bus_number(self):
+        response = self.client.get(reverse('tracking:api_search') + '?q=GJ-18-T-0004')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['found'])
+        self.assertEqual(data['schedule_id'], self.schedule.id)
+        self.assertEqual(data['bus_number'], 'GJ-18-T-0004')
+
+    def test_api_search_schedule_not_found(self):
+        response = self.client.get(reverse('tracking:api_search') + '?q=NON_EXISTENT_BUS_999')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertFalse(data['found'])
+
+    def test_role_based_live_tracking(self):
+        # Unauthenticated / Passenger access
+        response = self.client.get(reverse('tracking:live', args=[self.schedule.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context['is_admin'])
+
+

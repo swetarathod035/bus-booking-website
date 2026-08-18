@@ -1,348 +1,428 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Passenger Information — AnandBus{% endblock %}
+{% block title %}Passenger Details — AnandBus{% endblock %}
 
 {% block extra_css %}
 <style>
-  .step-badge {
-    width: 32px; height: 32px;
-    border-radius: 50%;
-    display: inline-flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 0.9rem;
-  }
-  .passenger-card {
-    background: #fff;
-    border-radius: 16px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
-    border: 1px solid #eef2f6;
-    transition: all 0.2s ease;
-  }
-  .passenger-card:hover {
-    box-shadow: 0 8px 30px rgba(0,0,0,0.1);
-  }
-  .summary-card {
-    background: linear-gradient(135deg, #1E3A5F 0%, #2980B9 100%);
-    color: white;
-    border-radius: 20px;
-    box-shadow: 0 10px 30px rgba(30,58,95,0.25);
-  }
+/* ─── Step Progress Bar ───────────────────────────────────────────── */
+.booking-steps { display: flex; align-items: center; gap: 0; }
+.booking-steps .step {
+  display: flex; flex-direction: column; align-items: center;
+  flex: 1; position: relative;
+}
+.booking-steps .step-circle {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 0.95rem; z-index: 2;
+  transition: all 0.3s;
+}
+.booking-steps .step.done .step-circle   { background: #27AE60; color: #fff; }
+.booking-steps .step.active .step-circle { background: #1E3A5F; color: #fff; box-shadow: 0 0 0 4px rgba(30,58,95,0.2); }
+.booking-steps .step.pending .step-circle{ background: #e9ecef; color: #aaa; }
+.booking-steps .step-label { font-size: 0.73rem; font-weight: 600; margin-top: 6px;
+  color: var(--text-muted); text-align: center; white-space: nowrap; }
+.booking-steps .step.active .step-label  { color: #1E3A5F; }
+.booking-steps .step.done .step-label    { color: #27AE60; }
+.booking-steps .step-line {
+  height: 3px; flex: 1; margin-top: -20px; z-index: 1;
+  background: #e9ecef; position: relative; top: -3px;
+}
+.booking-steps .step-line.done { background: #27AE60; }
+
+/* ─── Passenger Card ─────────────────────────────────────────────── */
+.pax-card {
+  border: none; border-radius: 18px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+  overflow: hidden;
+  transition: box-shadow 0.3s;
+}
+.pax-card:hover { box-shadow: 0 8px 32px rgba(0,0,0,0.12); }
+.pax-card-header {
+  background: linear-gradient(135deg, #1E3A5F 0%, #2980B9 100%);
+  padding: 14px 20px;
+  color: #fff;
+}
+.pax-card-header .seat-badge {
+  background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.35);
+  border-radius: 20px; padding: 4px 14px; font-size: 0.82rem; font-weight: 700;
+}
+.pax-card .form-control, .pax-card .form-select {
+  border-radius: 10px; border: 1.5px solid #e2e8f0;
+  padding: 0.6rem 1rem; font-size: 0.9rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.pax-card .form-control:focus, .pax-card .form-select:focus {
+  border-color: #1E3A5F; box-shadow: 0 0 0 3px rgba(30,58,95,0.1);
+}
+.pax-card .form-label {
+  font-size: 0.8rem; font-weight: 600; color: #555; margin-bottom: 4px;
+}
+.input-icon-wrap { position: relative; }
+.input-icon-wrap .form-control { padding-left: 2.5rem; }
+.input-icon-wrap .field-icon {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  color: #aaa; font-size: 0.9rem; pointer-events: none;
+}
+
+/* ─── Fare Summary ────────────────────────────────────────────────── */
+.fare-summary-card { border: none; border-radius: 18px; box-shadow: 0 4px 24px rgba(0,0,0,0.07); }
+.fare-line { display: flex; justify-content: space-between; padding: 8px 0;
+  border-bottom: 1px dashed #f0f0f0; font-size: 0.88rem; }
+.fare-line:last-child { border-bottom: none; font-weight: 700; font-size: 1rem; color: #1E3A5F; }
+.fare-line.total-line { background: linear-gradient(135deg,#1E3A5F,#2980B9);
+  color: #fff; border-radius: 12px; padding: 12px 16px; margin-top: 8px; }
+
+/* ─── Action Buttons ─────────────────────────────────────────────── */
+.btn-proceed {
+  background: linear-gradient(135deg, #FF6B35 0%, #E55A24 100%);
+  color: #fff; border: none; border-radius: 14px;
+  padding: 1rem 2rem; font-size: 1.05rem; font-weight: 700;
+  letter-spacing: 0.3px;
+  box-shadow: 0 6px 20px rgba(255,107,53,0.35);
+  transition: all 0.3s;
+}
+.btn-proceed:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(255,107,53,0.5); color: #fff; }
+.btn-back {
+  border: 2px solid #dee2e6; border-radius: 14px;
+  padding: 1rem 1.6rem; font-weight: 600;
+  color: #495057; background: #fff;
+  transition: all 0.3s;
+}
+.btn-back:hover { border-color: #1E3A5F; color: #1E3A5F; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container py-5">
+<div class="container py-4" style="max-width: 1000px;">
 
-  <!-- Step Tracker Bar -->
-  <div class="row justify-content-center mb-4">
-    <div class="col-lg-8 text-center">
-      <div class="d-flex align-items-center justify-content-center gap-3">
-        <div class="d-flex align-items-center gap-2 text-muted">
-          <span class="step-badge bg-secondary text-white">1</span>
-          <a href="{% url 'bookings:select_seats' schedule.id %}?seat_ids={{ seat_ids_str }}&from={{ boarding_stop.code }}&to={{ alighting_stop.code }}&seats={{ selected_seats|length }}" class="text-decoration-none text-muted fw-semibold">Select Seats</a>
-        </div>
-        <i class="fas fa-chevron-right text-muted"></i>
-        <div class="d-flex align-items-center gap-2 text-primary">
-          <span class="step-badge text-white" style="background:var(--brand-accent);">2</span>
-          <span class="fw-bold" style="color:var(--brand-primary);">Passenger Information</span>
-        </div>
-        <i class="fas fa-chevron-right text-muted"></i>
-        <div class="d-flex align-items-center gap-2 text-muted">
-          <span class="step-badge bg-light text-secondary border">3</span>
-          <span class="fw-semibold">Payment</span>
-        </div>
+  <!-- ─── Step Progress ─────────────────────────────────────────────── -->
+  <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+    <div class="booking-steps">
+      <div class="step done">
+        <div class="step-circle"><i class="fas fa-chair"></i></div>
+        <div class="step-label">Seat Selected</div>
+      </div>
+      <div class="step-line done"></div>
+      <div class="step active">
+        <div class="step-circle">2</div>
+        <div class="step-label">Passenger Details</div>
+      </div>
+      <div class="step-line"></div>
+      <div class="step pending">
+        <div class="step-circle">3</div>
+        <div class="step-label">Payment</div>
+      </div>
+      <div class="step-line"></div>
+      <div class="step pending">
+        <div class="step-circle"><i class="fas fa-check-circle"></i></div>
+        <div class="step-label">Confirmation</div>
       </div>
     </div>
   </div>
 
-  <div class="row g-4">
-    <!-- LEFT: Passenger Details Form -->
-    <div class="col-lg-8">
-      <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
-        <h4 class="fw-bold mb-1" style="color: var(--brand-primary);">
-          <i class="fas fa-user-edit me-2" style="color: var(--brand-accent);"></i>Enter Passenger Details
-        </h4>
-        <p class="text-muted small mb-4">Please provide details for each passenger as per valid Government ID proof.</p>
+  <!-- Flash messages -->
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags|default:'danger' }} border-0 rounded-3 mb-3">
+        <i class="fas fa-exclamation-circle me-2"></i>{{ message }}
+      </div>
+    {% endfor %}
+  {% endif %}
 
-        <form method="POST" action="{% url 'bookings:passenger_info' %}" id="paxForm" novalidate>
-          {% csrf_token %}
-          <input type="hidden" name="schedule_id" value="{{ schedule.id }}">
-          <input type="hidden" name="boarding_stop" value="{{ boarding_stop.code }}">
-          <input type="hidden" name="alighting_stop" value="{{ alighting_stop.code }}">
-          <input type="hidden" name="seat_ids" value="{{ seat_ids_str }}">
+  <form method="POST" id="passengerForm" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="schedule_id" value="{{ schedule.id }}">
+    <input type="hidden" name="seat_ids" value="{{ seat_ids_str }}">
+    <input type="hidden" name="boarding_stop" value="{{ boarding_stop.code }}">
+    <input type="hidden" name="alighting_stop" value="{{ alighting_stop.code }}">
 
-          <!-- Individual Passenger Inputs -->
-          <h6 class="fw-bold mb-3" style="color: var(--brand-primary);"><i class="fas fa-users me-2"></i>Passenger Details</h6>
+    <div class="row g-4">
+      <!-- LEFT: Passenger Forms -->
+      <div class="col-lg-7">
+        <h5 class="fw-bold mb-3" style="color: var(--brand-primary);">
+          <i class="fas fa-users me-2"></i>Passenger Information
+          <span class="badge ms-2" style="background:#eef6ff;color:#1E3A5F;font-size:0.72rem;">
+            {{ selected_seats|length }} Passenger{{ selected_seats|length|pluralize }}
+          </span>
+        </h5>
 
-          {% for seat in selected_seats %}
-          {% with idx=forloop.counter0 %}
-          <div class="passenger-card p-4 mb-4">
-            <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
-              <span class="fw-bold fs-6" style="color: var(--brand-primary);">
-                <i class="fas fa-user-tag me-2 text-warning"></i>Passenger {{ forloop.counter }}
-              </span>
-              <span class="badge px-3 py-2 rounded-pill" style="background:var(--brand-primary); color:white;">
-                Seat {{ seat.seat_number }}
-              </span>
+        {% for seat in selected_seats %}
+        {% with idx=forloop.counter0 %}
+        <div class="pax-card mb-3">
+          <div class="pax-card-header d-flex justify-content-between align-items-center">
+            <div>
+              <i class="fas fa-user me-2"></i>
+              <strong>Passenger {{ forloop.counter }}</strong>
             </div>
-
-            <input type="hidden" name="seat_id_{{ idx }}" value="{{ seat.id }}">
-
+            <span class="seat-badge">
+              <i class="fas fa-chair me-1"></i>Seat {{ seat.seat_number }}
+              {% if seat.column_letter == 'A' or seat.column_letter == 'E' %}· Window{% elif seat.column_letter == 'C' %}· Middle{% else %}· Aisle{% endif %}
+            </span>
+          </div>
+          <div class="card-body p-4">
             <div class="row g-3">
+
               <!-- Full Name -->
-              <div class="col-md-6">
-                <label class="form-label small fw-semibold text-dark">Full Name <span class="text-danger">*</span></label>
-                <input type="text" class="form-control" name="name_{{ idx }}"
-                       data-field-type="name"
-                       placeholder="Enter full name"
-                       pattern="[A-Za-z\s]{2,}" required>
-                <div class="invalid-feedback">Full Name must contain only letters and spaces (min 2 characters).</div>
+              <div class="col-12">
+                <label class="form-label">Full Name <span class="text-danger">*</span></label>
+                <div class="input-icon-wrap">
+                  <i class="fas fa-user field-icon"></i>
+                  <input type="text" class="form-control" name="name_{{ idx }}"
+                    placeholder="Enter full name (letters only)"
+                    value="{{ passengers_input|default_if_none:'' }}"
+                    {% if passengers_input %}value="{{ passengers_input|slice:forloop.counter0|default:'' }}"{% endif %}
+                    pattern="[A-Za-z\s]{2,}" required>
+                </div>
+                <div class="invalid-feedback">Name must contain only letters and spaces (min 2 characters).</div>
               </div>
 
-              <!-- Age -->
-              <div class="col-md-3">
-                <label class="form-label small fw-semibold text-dark">Age <span class="text-danger">*</span></label>
-                <input type="number" class="form-control" name="age_{{ idx }}"
-                       data-field-type="age"
-                       min="1" max="99" maxlength="2"
-                       placeholder="Age (1-99)" required>
-                <div class="invalid-feedback">Please enter a valid age (1-99)</div>
+              <!-- Age & Gender -->
+              <div class="col-6">
+                <label class="form-label">Age <span class="text-danger">*</span></label>
+                <div class="input-icon-wrap">
+                  <i class="fas fa-birthday-cake field-icon"></i>
+                  <input type="number" class="form-control" name="age_{{ idx }}"
+                    placeholder="Age (1–99)" min="1" max="99" maxlength="2" required>
+                </div>
+                <div class="invalid-feedback">Please enter a valid age (1–99).</div>
               </div>
-
-              <!-- Gender -->
-              <div class="col-md-3">
-                <label class="form-label small fw-semibold text-dark">Gender <span class="text-danger">*</span></label>
-                <select class="form-select" name="gender_{{ idx }}" data-field-type="gender" required>
-                  <option value="" selected disabled>Select Gender</option>
+              <div class="col-6">
+                <label class="form-label">Gender <span class="text-danger">*</span></label>
+                <select class="form-select" name="gender_{{ idx }}" required>
+                  <option value="">— Select —</option>
                   <option value="M">Male</option>
                   <option value="F">Female</option>
                   <option value="O">Other</option>
                 </select>
-                <div class="invalid-feedback">Please select a gender.</div>
+                <div class="invalid-feedback">Please select gender.</div>
               </div>
 
-              <!-- Email Address -->
-              <div class="col-md-6">
-                <label class="form-label small fw-semibold text-dark">Email Address <span class="text-danger">*</span></label>
-                <input type="email" class="form-control" name="email_{{ idx }}"
-                       data-field-type="email"
-                       placeholder="e.g. passenger@email.com"
-                       autocomplete="off" required>
+              <!-- Email -->
+              <div class="col-12 col-md-6">
+                <label class="form-label">Email Address <span class="text-danger">*</span></label>
+                <div class="input-icon-wrap">
+                  <i class="fas fa-envelope field-icon"></i>
+                  <input type="email" class="form-control" name="email_{{ idx }}"
+                    placeholder="example@email.com"
+                    value="{% if idx == 0 %}{{ request.user.email }}{% endif %}"
+                    required>
+                </div>
                 <div class="invalid-feedback">Please enter a valid email address.</div>
               </div>
 
-              <!-- Phone Number -->
-              <div class="col-md-6">
-                <label class="form-label small fw-semibold text-dark">Phone Number <span class="text-danger">*</span></label>
-                <input type="tel" class="form-control" name="phone_{{ idx }}"
-                       data-field-type="phone"
-                       maxlength="10" pattern="\d{10}"
-                       placeholder="e.g. 9876543210" required>
+              <!-- Phone -->
+              <div class="col-12 col-md-6">
+                <label class="form-label">Phone Number <span class="text-danger">*</span></label>
+                <div class="input-icon-wrap">
+                  <i class="fas fa-mobile-alt field-icon"></i>
+                  <input type="tel" class="form-control" name="phone_{{ idx }}"
+                    placeholder="10-digit mobile number"
+                    pattern="\d{10}" maxlength="10"
+                    value="{% if idx == 0 %}{{ request.user.phone|default:'' }}{% endif %}"
+                    required>
+                </div>
                 <div class="invalid-feedback">Please enter a valid 10-digit phone number.</div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+        {% endwith %}
+        {% endfor %}
+      </div>
+
+      <!-- RIGHT: Journey Summary + Fare -->
+      <div class="col-lg-5">
+        <div style="position: sticky; top: 80px;">
+
+          <!-- Journey Summary -->
+          <div class="fare-summary-card card mb-3 p-4">
+            <h6 class="fw-bold mb-3" style="color:var(--brand-primary);">
+              <i class="fas fa-route me-2"></i>Journey Summary
+            </h6>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <div class="text-center">
+                <div class="fw-black" style="font-size:1.1rem;color:#1E3A5F;">{{ schedule.departure_time|time:"H:i" }}</div>
+                <small class="text-muted">{{ boarding_stop.name|truncatechars:18 }}</small>
+              </div>
+              <div class="text-center px-2">
+                <div class="text-muted"><i class="fas fa-arrow-right"></i></div>
+                <small class="text-muted" style="font-size:0.7rem;">{{ schedule.route.distance_km }} km</small>
+              </div>
+              <div class="text-center">
+                <div class="fw-black" style="font-size:1.1rem;color:#1E3A5F;">{{ schedule.arrival_time|time:"H:i" }}</div>
+                <small class="text-muted">{{ alighting_stop.name|truncatechars:18 }}</small>
+              </div>
+            </div>
+            <div class="row g-2 small">
+              <div class="col-6">
+                <div class="p-2 rounded-3" style="background:#f8f9fa;">
+                  <div class="text-muted" style="font-size:0.72rem;">Date</div>
+                  <div class="fw-semibold">{{ schedule.travel_date|date:"d M Y" }}</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="p-2 rounded-3" style="background:#f8f9fa;">
+                  <div class="text-muted" style="font-size:0.72rem;">Bus</div>
+                  <div class="fw-semibold">{{ schedule.bus.bus_name|truncatechars:16 }}</div>
+                </div>
+              </div>
+              <div class="col-12">
+                <div class="p-2 rounded-3" style="background:#f8f9fa;">
+                  <div class="text-muted" style="font-size:0.72rem;">Seats</div>
+                  <div class="fw-semibold">
+                    {% for seat in selected_seats %}
+                      <span class="badge me-1" style="background:#1E3A5F;font-size:0.75rem;">{{ seat.seat_number }}</span>
+                    {% endfor %}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          {% endwith %}
-          {% endfor %}
 
-          <!-- Submit Button -->
-          <div class="d-flex justify-content-between align-items-center mt-4">
-            <a href="{% url 'bookings:select_seats' schedule.id %}?seat_ids={{ seat_ids_str }}&from={{ boarding_stop.code }}&to={{ alighting_stop.code }}&seats={{ selected_seats|length }}" class="btn btn-outline-secondary rounded-pill px-4">
-              <i class="fas fa-arrow-left me-2"></i>Back to Seats
+          <!-- Fare Breakdown -->
+          <div class="fare-summary-card card mb-3 p-4">
+            <h6 class="fw-bold mb-3" style="color:var(--brand-primary);">
+              <i class="fas fa-receipt me-2"></i>Fare Breakdown
+            </h6>
+            <div class="fare-line"><span>Base Fare</span><span>₹{{ fare_data.base_amount }}</span></div>
+            <div class="fare-line"><span>GST (5%)</span><span>₹{{ fare_data.tax_amount }}</span></div>
+            <div class="fare-line"><span>Convenience Fee</span><span>₹{{ fare_data.convenience_fee }}</span></div>
+            {% if fare_data.discount_amount > 0 %}
+            <div class="fare-line text-success"><span>Discount</span><span>-₹{{ fare_data.discount_amount }}</span></div>
+            {% endif %}
+            <div class="fare-line total-line">
+              <span>Total Payable</span>
+              <span class="fs-5 fw-black">₹{{ fare_data.total_amount }}</span>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="d-flex gap-3">
+            <a href="javascript:history.back()" class="btn btn-back">
+              <i class="fas fa-arrow-left me-2"></i>Back
             </a>
-            <button type="submit" class="btn btn-lg rounded-pill px-5 fw-bold text-white shadow-sm"
-                    style="background: linear-gradient(135deg,#FF6B35,#e55a24); border:none;">
-              Proceed to Payment <i class="fas fa-arrow-right ms-2"></i>
+            <button type="submit" class="btn btn-proceed flex-grow-1" id="submitBtn">
+              <i class="fas fa-lock me-2"></i>Proceed to Payment — ₹{{ fare_data.total_amount }}
             </button>
           </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- RIGHT: Summary Panel -->
-    <div class="col-lg-4">
-      <div class="summary-card p-4 mb-4">
-        <h5 class="fw-bold mb-3 text-white border-bottom border-light pb-2">
-          <i class="fas fa-bus me-2"></i>Trip Summary
-        </h5>
-
-        <div class="mb-3">
-          <small class="text-white-50 text-uppercase fw-semibold" style="font-size:0.75rem;">Route</small>
-          <div class="fw-bold fs-6 text-white">{{ schedule.route }}</div>
-        </div>
-
-        <div class="row g-2 mb-3">
-          <div class="col-6">
-            <small class="text-white-50 text-uppercase fw-semibold" style="font-size:0.75rem;">Travel Date</small>
-            <div class="fw-semibold text-white">{{ schedule.travel_date|date:"D, d M Y" }}</div>
-          </div>
-          <div class="col-6">
-            <small class="text-white-50 text-uppercase fw-semibold" style="font-size:0.75rem;">Departure</small>
-            <div class="fw-semibold text-white">{{ schedule.departure_time|time:"H:i" }}</div>
-          </div>
-        </div>
-
-        <div class="row g-2 mb-3">
-          <div class="col-6">
-            <small class="text-white-50 text-uppercase fw-semibold" style="font-size:0.75rem;">Boarding</small>
-            <div class="fw-semibold text-white">{{ boarding_stop.name }}</div>
-          </div>
-          <div class="col-6">
-            <small class="text-white-50 text-uppercase fw-semibold" style="font-size:0.75rem;">Alighting</small>
-            <div class="fw-semibold text-white">{{ alighting_stop.name }}</div>
-          </div>
-        </div>
-
-        <div class="mb-3">
-          <small class="text-white-50 text-uppercase fw-semibold" style="font-size:0.75rem;">Selected Seats</small>
-          <div class="d-flex flex-wrap gap-1 mt-1">
-            {% for s in selected_seats %}
-              <span class="badge bg-warning text-dark fw-bold px-2 py-1 fs-7">Seat {{ s.seat_number }}</span>
-            {% endfor %}
-          </div>
-        </div>
-
-        <hr class="my-3 border-light opacity-25">
-
-        <!-- Fare Breakdown -->
-        <h6 class="fw-bold text-white mb-2"><i class="fas fa-receipt me-2"></i>Fare Breakdown</h6>
-        <div class="d-flex justify-content-between small opacity-90 mb-1">
-          <span>Base Fare ({{ selected_seats|length }} seat{% if selected_seats|length > 1 %}s{% endif %})</span>
-          <span>₹{{ fare_data.base_amount }}</span>
-        </div>
-        <div class="d-flex justify-content-between small opacity-90 mb-1">
-          <span>GST (5%)</span>
-          <span>₹{{ fare_data.tax_amount }}</span>
-        </div>
-        <div class="d-flex justify-content-between small opacity-90 mb-2">
-          <span>Convenience Fee</span>
-          <span>₹{{ fare_data.convenience_fee }}</span>
-        </div>
-
-        <div class="d-flex justify-content-between align-items-center p-3 rounded-3 mt-2" style="background: rgba(255,255,255,0.15);">
-          <span class="fw-bold fs-6">Total Amount</span>
-          <span class="fw-bold fs-4 text-warning">₹{{ fare_data.total_amount }}</span>
+          <p class="text-center mt-2" style="font-size:0.73rem;color:#aaa;">
+            <i class="fas fa-shield-alt me-1"></i>256-bit SSL · Step 2 of 3
+          </p>
         </div>
       </div>
-    </div>
 
-  </div>
+    </div>
+  </form>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  const paxForm = document.getElementById('paxForm');
-  if (!paxForm) return;
+  // Client-side validation before submit
+  const form = document.getElementById('passengerForm');
+  const submitBtn = document.getElementById('submitBtn');
 
-  function validateField(input) {
-    const fieldType = input.dataset.fieldType;
-    const val = input.value.trim();
-    let isValid = true;
-    let errorMsg = '';
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      let valid = true;
 
-    if (fieldType === 'name') {
-      const nameRegex = /^[A-Za-z\s]{2,}$/;
-      if (!val || !nameRegex.test(val)) {
-        isValid = false;
-        errorMsg = 'Full Name must contain only letters and spaces (min 2 characters).';
-      }
-    } else if (fieldType === 'age') {
-      const num = parseInt(val, 10);
-      if (!val || isNaN(num) || num < 1 || num > 99 || val.length > 2) {
-        isValid = false;
-        errorMsg = 'Please enter a valid age (1-99)';
-      }
-    } else if (fieldType === 'gender') {
-      if (!val || !['M', 'F', 'O'].includes(val)) {
-        isValid = false;
-        errorMsg = 'Please select a gender.';
-      }
-    } else if (fieldType === 'email') {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!val || !emailRegex.test(val)) {
-        isValid = false;
-        errorMsg = 'Please enter a valid email address.';
-      }
-    } else if (fieldType === 'phone') {
-      const phoneRegex = /^\d{10}$/;
-      if (!val || !phoneRegex.test(val)) {
-        isValid = false;
-        errorMsg = 'Please enter a valid 10-digit phone number.';
-      }
-    }
-
-    const feedbackEl = input.nextElementSibling;
-    if (!isValid) {
-      input.classList.add('is-invalid');
-      input.classList.remove('is-valid');
-      if (feedbackEl && feedbackEl.classList.contains('invalid-feedback')) {
-        feedbackEl.textContent = errorMsg;
-      }
-    } else {
-      input.classList.remove('is-invalid');
-      input.classList.add('is-valid');
-    }
-    return isValid;
-  }
-
-  // Attach real-time validation handlers & state persistence
-  const inputs = paxForm.querySelectorAll('[data-field-type]');
-
-  // Restore saved passenger inputs from sessionStorage
-  try {
-    const savedPax = JSON.parse(sessionStorage.getItem('anandbus_pax_inputs') || '{}');
-    Object.keys(savedPax).forEach(name => {
-      const input = paxForm.querySelector(`[name="${name}"]`);
-      if (input && savedPax[name]) {
-        input.value = savedPax[name];
-      }
-    });
-  } catch(e) {}
-
-  const savePaxState = () => {
-    try {
-      const paxData = {};
-      const allInputs = paxForm.querySelectorAll('input, select');
-      allInputs.forEach(inp => {
-        if (inp.name && inp.value) {
-          paxData[inp.name] = inp.value;
+      // Name fields: only letters and spaces, min 2 chars
+      form.querySelectorAll('input[name^="name_"]').forEach(function(input) {
+        const val = input.value.trim();
+        if (!val || val.length < 2 || !/^[A-Za-z\s]+$/.test(val)) {
+          input.classList.add('is-invalid');
+          valid = false;
+        } else {
+          input.classList.remove('is-invalid');
+          input.classList.add('is-valid');
         }
       });
-      sessionStorage.setItem('anandbus_pax_inputs', JSON.stringify(paxData));
-    } catch(e) {}
-  };
 
-  inputs.forEach(input => {
-    input.addEventListener('blur', function() {
-      validateField(input);
-    });
-    input.addEventListener('input', function() {
-      savePaxState();
-      if (input.classList.contains('is-invalid')) {
-        validateField(input);
+      // Age: 1-99
+      form.querySelectorAll('input[name^="age_"]').forEach(function(input) {
+        const val = input.value.trim();
+        const num = parseInt(val);
+        if (!val || isNaN(num) || num < 1 || num > 99 || val.length > 2) {
+          input.classList.add('is-invalid');
+          valid = false;
+        } else {
+          input.classList.remove('is-invalid');
+          input.classList.add('is-valid');
+        }
+      });
+
+      // Gender: required
+      form.querySelectorAll('select[name^="gender_"]').forEach(function(sel) {
+        if (!sel.value) {
+          sel.classList.add('is-invalid');
+          valid = false;
+        } else {
+          sel.classList.remove('is-invalid');
+          sel.classList.add('is-valid');
+        }
+      });
+
+      // Email: basic pattern
+      form.querySelectorAll('input[name^="email_"]').forEach(function(input) {
+        const val = input.value.trim();
+        const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!val || !emailRe.test(val)) {
+          input.classList.add('is-invalid');
+          valid = false;
+        } else {
+          input.classList.remove('is-invalid');
+          input.classList.add('is-valid');
+        }
+      });
+
+      // Phone: exactly 10 digits
+      form.querySelectorAll('input[name^="phone_"]').forEach(function(input) {
+        const val = input.value.trim();
+        if (!val || !/^\d{10}$/.test(val)) {
+          input.classList.add('is-invalid');
+          valid = false;
+        } else {
+          input.classList.remove('is-invalid');
+          input.classList.add('is-valid');
+        }
+      });
+
+      if (!valid) {
+        e.preventDefault();
+        // Scroll to first error
+        const firstErr = form.querySelector('.is-invalid');
+        if (firstErr) firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
       }
+
+      // Show loading on button
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
     });
-    input.addEventListener('change', savePaxState);
+  }
+
+  // Phone: allow only digits
+  document.querySelectorAll('input[name^="phone_"]').forEach(function(input) {
+    input.addEventListener('input', function() {
+      this.value = this.value.replace(/\D/g, '').slice(0, 10);
+    });
   });
 
-  paxForm.addEventListener('submit', function(e) {
-    let formValid = true;
-    inputs.forEach(input => {
-      if (!validateField(input)) {
-        formValid = false;
-      }
+  // Age: prevent 3-digit entry
+  document.querySelectorAll('input[name^="age_"]').forEach(function(input) {
+    input.addEventListener('input', function() {
+      if (this.value.length > 2) this.value = this.value.slice(0, 2);
     });
+  });
 
-    if (!formValid) {
-      e.preventDefault();
-      e.stopPropagation();
-      const firstInvalid = paxForm.querySelector('.is-invalid');
-      if (firstInvalid) {
-        firstInvalid.focus();
-      }
-    } else {
-      savePaxState();
-    }
+  // Name: allow only letters and spaces
+  document.querySelectorAll('input[name^="name_"]').forEach(function(input) {
+    input.addEventListener('input', function() {
+      this.value = this.value.replace(/[^A-Za-z\s]/g, '');
+    });
   });
 });
 </script>

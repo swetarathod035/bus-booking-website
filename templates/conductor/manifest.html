@@ -40,7 +40,7 @@
             <tr>
               <td class="ps-4">{{ forloop.counter }}</td>
               <td>
-                <div class="fw-semibold">{{ booking.passenger.get_full_name }}</div>
+                <div class="fw-semibold">{{ booking.passenger.get_full_name|default:booking.passenger.username }}</div>
                 <small class="text-muted">{{ booking.passenger.phone|default:'—' }}</small>
               </td>
               <td>
@@ -53,10 +53,15 @@
               <td><code class="small">{{ booking.short_id }}</code></td>
               <td class="fw-semibold">₹{{ booking.total_amount }}</td>
               <td>
-                {% if booking.ticket.is_verified %}
-                  <span class="badge bg-success rounded-pill">Verified</span>
+                {% if booking.ticket %}
+                  <button type="button" class="btn btn-sm rounded-pill fw-bold {% if booking.ticket.is_verified %}btn-success{% else %}btn-outline-secondary{% endif %}"
+                          id="checkinBtn{{ booking.ticket.id }}"
+                          onclick="togglePassengerCheckin({{ booking.ticket.id }})">
+                    <i class="fas {% if booking.ticket.is_verified %}fa-check-circle{% else %}fa-circle-xmark{% endif %} me-1" id="checkinIcon{{ booking.ticket.id }}"></i>
+                    <span id="checkinText{{ booking.ticket.id }}">{% if booking.ticket.is_verified %}BOARDED ✓{% else %}NOT BOARDED{% endif %}</span>
+                  </button>
                 {% else %}
-                  <span class="badge bg-secondary rounded-pill">Pending</span>
+                  <span class="badge bg-secondary rounded-pill">No Ticket</span>
                 {% endif %}
               </td>
             </tr>
@@ -64,18 +69,41 @@
             <tr><td colspan="8" class="text-center text-muted py-5">No confirmed bookings for this trip.</td></tr>
             {% endfor %}
           </tbody>
-          {% if bookings %}
-          <tfoot style="background:#f8f9fa;">
-            <tr>
-              <td colspan="6" class="ps-4 fw-bold">Total Passengers: {{ bookings|length }}</td>
-              <td class="fw-bold">₹{% for b in bookings %}{{ b.total_amount }}{% endfor %}</td>
-              <td></td>
-            </tr>
-          </tfoot>
-          {% endif %}
         </table>
       </div>
     </div>
   </div>
 </div>
+
+<script>
+function togglePassengerCheckin(ticketId) {
+  const btn = document.getElementById(`checkinBtn${ticketId}`);
+  const icon = document.getElementById(`checkinIcon${ticketId}`);
+  const text = document.getElementById(`checkinText${ticketId}`);
+
+  fetch("{% url 'conductor:toggle_passenger_checkin' %}", {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': '{{ csrf_token }}',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ ticket_id: ticketId })
+  }).then(r => r.json()).then(data => {
+    if (data.success) {
+      if (data.is_verified) {
+        btn.className = 'btn btn-sm rounded-pill fw-bold btn-success';
+        icon.className = 'fas fa-check-circle me-1';
+        text.innerText = 'BOARDED ✓';
+      } else {
+        btn.className = 'btn btn-sm rounded-pill fw-bold btn-outline-secondary';
+        icon.className = 'fas fa-circle-xmark me-1';
+        text.innerText = 'NOT BOARDED';
+      }
+    } else {
+      alert('Error updating check-in state: ' + (data.error || 'Unknown error'));
+    }
+  }).catch(e => alert('Error: ' + e));
+}
+</script>
 {% endblock %}
+

@@ -53,6 +53,18 @@ def student_pass_view(request):
             bus_pass.valid_to = date.today() + relativedelta(months=months)
 
             bus_pass.save()
+
+            if request.user.is_authenticated:
+                from accounts.utils import create_notification
+                from accounts.models import Notification
+                create_notification(
+                    user=request.user,
+                    title=f"🎫 Student Pass Application Submitted #{bus_pass.pass_number}",
+                    message=f"Your Student Bus Pass application for route {bus_pass.route.route_name if bus_pass.route else 'All City Routes'} was submitted successfully and is pending verification.",
+                    notification_type=Notification.NotificationType.PASS_SUBMITTED,
+                    link="/passes/my-passes/"
+                )
+
             messages.success(
                 request,
                 f"🎉 Student Bus Pass application submitted successfully! Your Pass Reference ID is {bus_pass.pass_number}. Status: Pending Verification."
@@ -225,16 +237,52 @@ def admin_manage_passes_view(request):
 
         if action_type == 'BUS_PASS':
             bpass = get_object_or_404(BusPass, pk=item_id)
+            old_status = bpass.status
             bpass.status = new_status
             bpass.save()
+
+            from accounts.models import log_admin_action, AdminAuditLog
+            act_type = AdminAuditLog.ActionType.PASS_APPROVED if new_status == 'APPROVED' else AdminAuditLog.ActionType.PASS_REJECTED
+            log_admin_action(
+                admin_user=request.user,
+                action_type=act_type,
+                target_repr=f"Bus Pass #{bpass.pass_number}",
+                details=f"Admin updated Bus Pass #{bpass.pass_number} status from {old_status} to {new_status} for applicant {bpass.applicant_name}.",
+                request=request
+            )
+
+            if bpass.user:
+                from accounts.utils import create_notification
+                from accounts.models import Notification
+                ntype = Notification.NotificationType.PASS_APPROVED if new_status == 'APPROVED' else Notification.NotificationType.GENERAL
+                create_notification(
+                    user=bpass.user,
+                    title=f"🎫 Pass #{bpass.pass_number} Update: {bpass.get_status_display()}",
+                    message=f"Your bus pass application #{bpass.pass_number} status has been updated to {bpass.get_status_display()}.",
+                    notification_type=ntype,
+                    link="/passes/my-passes/"
+                )
+
             messages.success(request, f"Pass {bpass.pass_number} status updated to {bpass.get_status_display()}.")
         elif action_type == 'SCHEME_APP':
             sapp = get_object_or_404(SchemeApplication, pk=item_id)
+            old_status = sapp.status
             sapp.status = new_status
             sapp.save()
+
+            from accounts.models import log_admin_action, AdminAuditLog
+            log_admin_action(
+                admin_user=request.user,
+                action_type=AdminAuditLog.ActionType.SCHEME_APP_UPDATED,
+                target_repr=f"Scheme App #{sapp.application_number}",
+                details=f"Admin updated Special Scheme application #{sapp.application_number} status from {old_status} to {new_status} for scheme '{sapp.scheme.title}'.",
+                request=request
+            )
+
             messages.success(request, f"Scheme Application {sapp.application_number} status updated to {sapp.get_status_display()}.")
 
         return redirect('passes:admin_manage_passes')
+
 
     passes_qs = BusPass.objects.all()
     schemes_qs = SchemeApplication.objects.all()

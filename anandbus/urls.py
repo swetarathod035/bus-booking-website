@@ -14,6 +14,7 @@ urlpatterns = [
     path('conductor/', include('conductor.urls', namespace='conductor')),
     path('tracking/', include('tracking.urls', namespace='tracking')),
     path('passes/', include('passes.urls', namespace='passes')),
+    # passes app merged into bookings — URLs available at /bookings/passes/
 
     # Redirect /dashboard/ based on role
     path('dashboard/', include('accounts.dashboard_urls')),

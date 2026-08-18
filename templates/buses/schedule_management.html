@@ -1,39 +1,85 @@
 {% extends 'base.html' %}
 {% block title %}Manage Schedules{% endblock %}
-{% block extra_css %}<style>.admin-layout{display:flex;min-height:calc(100vh - 60px);}.admin-content{margin-left:260px;flex:1;padding:2rem;}.sidebar-link{display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:10px;color:rgba(255,255,255,0.75);text-decoration:none;font-size:0.875rem;transition:all 0.2s;margin-bottom:2px;}.sidebar-link:hover{background:rgba(255,255,255,0.12);color:#fff;}</style>{% endblock %}
+{% block extra_css %}
+<style>
+.admin-layout { display:flex; min-height:calc(100vh - 60px); }
+.admin-content { margin-left:260px; flex:1; padding:2rem; }
+.sidebar-link { display:flex; align-items:center; gap:10px; padding:10px 16px; border-radius:10px; color:rgba(255,255,255,0.75); text-decoration:none; font-size:0.875rem; transition:all 0.2s; margin-bottom:2px; }
+.sidebar-link:hover { background:rgba(255,255,255,0.12); color:#fff; }
+.status-select { border-radius:8px; border:1.5px solid #dee2e6; font-size:0.82rem; padding:5px 10px; cursor:pointer; }
+</style>
+{% endblock %}
 {% block content %}
 <div class="admin-layout">
   {% include 'partials/sidebar_admin.html' %}
   <div class="admin-content">
-    <h4 class="fw-black mb-4" style="color:var(--brand-primary);">Upcoming Schedules</h4>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h4 class="fw-black mb-0" style="color:var(--brand-primary);">Upcoming Schedules</h4>
+      <a href="{% url 'buses:schedule_create' %}" class="btn rounded-3 fw-semibold px-4"
+         style="background:var(--brand-accent);color:#fff;border:none;">
+        <i class="fas fa-plus me-2"></i>Add Schedule
+      </a>
+    </div>
     <div class="card border-0 shadow-sm rounded-4">
       <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
           <thead style="background:#f8f9fa;">
-            <tr><th class="py-3 ps-4">Route</th><th>Bus</th><th>Date</th><th>Dep.</th><th>Avail. Seats</th><th>Status</th><th>Actions</th></tr>
+            <tr>
+              <th class="py-3 ps-4">Route</th>
+              <th>Bus</th>
+              <th>Date</th>
+              <th>Departure</th>
+              <th>Seats Left</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
           </thead>
           <tbody>
             {% for s in schedules %}
             <tr>
-              <td class="ps-4 fw-semibold">{{ s.route.route_number }}</td>
-              <td>{{ s.bus.bus_number }}</td>
-              <td>{{ s.travel_date }}</td>
-              <td>{{ s.departure_time|time:"H:i" }}</td>
-              <td>{{ s.available_seats }}</td>
+              <td class="ps-4 fw-semibold small">{{ s.route.route_number }} — {{ s.route.route_name|truncatechars:28 }}</td>
+              <td class="small">{{ s.bus.bus_number }}</td>
+              <td class="small">{{ s.travel_date|date:"d M Y" }}</td>
+              <td class="fw-semibold">{{ s.departure_time|time:"H:i" }}</td>
               <td>
-                <select class="form-select form-select-sm" style="min-width:130px;"
-                        onchange="updateScheduleStatus({{ s.id }}, this.value)">
+                <span class="badge rounded-pill {% if s.available_seats > 10 %}bg-success{% elif s.available_seats > 0 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                  {{ s.available_seats }}
+                </span>
+              </td>
+              <td>
+                <select class="status-select form-select form-select-sm" style="min-width:130px;"
+                        onchange="updateScheduleStatus({{ s.id }}, this.value, this)">
                   {% for val, label in s.Status.choices %}
                     <option value="{{ val }}" {% if val == s.status %}selected{% endif %}>{{ label }}</option>
                   {% endfor %}
                 </select>
               </td>
               <td>
-                <a href="{% url 'conductor:trip_detail' s.id %}" class="btn btn-sm btn-outline-primary rounded-2"><i class="fas fa-eye"></i></a>
+                <div class="d-flex gap-1">
+                  <a href="{% url 'buses:schedule_edit' s.id %}" class="btn btn-sm rounded-2"
+                     style="background:#1E3A5F;color:#fff;border:none;" title="Edit">
+                    <i class="fas fa-pencil"></i>
+                  </a>
+                  <a href="{% url 'conductor:trip_detail' s.id %}" class="btn btn-sm btn-outline-primary rounded-2" title="View Trip">
+                    <i class="fas fa-eye"></i>
+                  </a>
+                  <form method="POST" action="{% url 'buses:schedule_delete' s.id %}" style="display:inline;"
+                        onsubmit="return confirm('Delete this schedule?')">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-2" title="Delete">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </form>
+                </div>
               </td>
             </tr>
             {% empty %}
-            <tr><td colspan="7" class="text-center py-5 text-muted">No upcoming schedules.</td></tr>
+            <tr>
+              <td colspan="7" class="text-center py-5 text-muted">
+                <i class="fas fa-calendar-xmark fa-3x mb-3 d-block opacity-25"></i>
+                No upcoming schedules. <a href="{% url 'buses:schedule_create' %}">Add one now.</a>
+              </td>
+            </tr>
             {% endfor %}
           </tbody>
         </table>
@@ -44,15 +90,31 @@
 {% endblock %}
 {% block extra_js %}
 <script>
-function updateScheduleStatus(scheduleId, status) {
+function updateScheduleStatus(scheduleId, status, selectEl) {
   fetch(`/buses/api/schedule/${scheduleId}/status/`, {
     method: 'POST',
-    headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrf()},
     body: JSON.stringify({status})
-  }).then(r => r.json()).then(d => {
-    if (d.success) AnandBus.showToast('Status updated to ' + d.status, 'success');
-    else AnandBus.showToast('Update failed', 'danger');
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.success) {
+      showToast('Status updated to: ' + status, 'success');
+    } else {
+      showToast('Update failed', 'danger');
+    }
   });
+}
+function getCsrf() {
+  return document.cookie.split(';').find(c => c.trim().startsWith('csrftoken='))?.split('=')[1] || '';
+}
+function showToast(msg, type='info') {
+  const t = document.createElement('div');
+  t.className = `alert alert-${type} position-fixed shadow-lg`;
+  t.style.cssText = 'top:80px;right:20px;z-index:9999;min-width:260px;border-radius:12px;border:none;';
+  t.innerHTML = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
 }
 </script>
 {% endblock %}

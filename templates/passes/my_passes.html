@@ -24,6 +24,71 @@
     background: rgba(255,107,53,0.15);
     border-radius: 50%;
   }
+
+  /* Multi-Step Pass Tracking Progress Bar */
+  .pass-stepper {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    margin: 20px 0 10px 0;
+  }
+  .pass-stepper::before {
+    content: '';
+    position: absolute;
+    top: 18px;
+    left: 10%;
+    right: 10%;
+    height: 4px;
+    background: #e2e8f0;
+    z-index: 1;
+  }
+  .pass-step {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    flex: 1;
+  }
+  .step-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 3px solid #cbd5e1;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 6px auto;
+    font-weight: 700;
+    font-size: 0.85rem;
+    transition: all 0.3s ease;
+  }
+  .pass-step.completed .step-icon {
+    background: #10B981;
+    border-color: #10B981;
+    color: #ffffff;
+  }
+  .pass-step.active .step-icon {
+    background: #F59E0B;
+    border-color: #F59E0B;
+    color: #ffffff;
+    animation: pulseStep 1.5s infinite;
+  }
+  .pass-step.rejected .step-icon {
+    background: #EF4444;
+    border-color: #EF4444;
+    color: #ffffff;
+  }
+  @keyframes pulseStep {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(245,158,11,0.4); }
+    50% { transform: scale(1.1); box-shadow: 0 0 0 8px rgba(245,158,11,0); }
+  }
+  .step-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #475569;
+  }
 </style>
 {% endblock %}
 
@@ -32,7 +97,7 @@
   <div class="d-flex align-items-center justify-content-between mb-4">
     <div>
       <h3 class="fw-extrabold text-dark mb-1"><i class="fas fa-id-card text-primary me-2"></i>My Pass & Scheme Applications</h3>
-      <p class="text-muted small">Track approval status and view your digital bus passes</p>
+      <p class="text-muted small">Smart Student Pass Application Tracking & Digital Pass Portal</p>
     </div>
     <div class="d-flex gap-2">
       <a href="{% url 'passes:student_pass' %}" class="btn btn-outline-primary rounded-pill btn-sm fw-semibold">
@@ -45,15 +110,19 @@
   </div>
 
   <!-- Bus Passes Section -->
-  <h5 class="fw-bold text-primary mb-3"><i class="fas fa-ticket-alt me-2"></i>Bus Passes</h5>
+  <h5 class="fw-bold text-primary mb-3"><i class="fas fa-ticket-alt me-2"></i>Bus Passes & Live Progress Tracker</h5>
+  
   <div class="row g-4 mb-5">
     {% for bpass in user_passes %}
     <div class="col-lg-6">
-      <div class="digital-pass-card">
+      <div class="card border-0 rounded-4 shadow-sm p-4 bg-white mb-3">
+        
+        <!-- Header -->
         <div class="d-flex justify-content-between align-items-start mb-3">
           <div>
             <span class="badge bg-warning text-dark fw-bold mb-1">{{ bpass.get_applicant_type_display }}</span>
-            <div class="fw-bold fs-5 text-white">{{ bpass.pass_number }}</div>
+            <h5 class="fw-bold text-dark mb-0">{{ bpass.pass_number }}</h5>
+            <small class="text-muted">Applied on {{ bpass.applied_at|date:"d M Y" }}</small>
           </div>
           {% if bpass.status == 'APPROVED' %}
             <span class="badge bg-success px-3 py-2 fs-6"><i class="fas fa-check-circle me-1"></i>APPROVED</span>
@@ -64,29 +133,79 @@
           {% endif %}
         </div>
 
-        <div class="row g-2 small text-light opacity-90 mb-3">
-          <div class="col-6">
-            <span class="d-block text-uppercase" style="font-size:0.7rem;opacity:0.7;">Applicant Name</span>
-            <strong class="text-white">{{ bpass.applicant_name }}</strong>
-          </div>
-          <div class="col-6">
-            <span class="d-block text-uppercase" style="font-size:0.7rem;opacity:0.7;">Route</span>
-            <strong class="text-white">{{ bpass.route.route_name|default:"All City Routes" }}</strong>
-          </div>
-          <div class="col-6 mt-2">
-            <span class="d-block text-uppercase" style="font-size:0.7rem;opacity:0.7;">Valid From</span>
-            <strong class="text-white">{{ bpass.valid_from|default:"Pending Approval" }}</strong>
-          </div>
-          <div class="col-6 mt-2">
-            <span class="d-block text-uppercase" style="font-size:0.7rem;opacity:0.7;">Valid Until</span>
-            <strong class="text-white">{{ bpass.valid_to|default:"Pending Approval" }}</strong>
+        <!-- ─── SMART MULTI-STEP PROGRESS TRACKER ──────────────────────────── -->
+        <div class="p-3 bg-light rounded-3 mb-3 border">
+          <small class="fw-bold text-uppercase text-muted d-block mb-2" style="font-size:0.68rem;">Application Progress Tracking</small>
+          
+          <div class="pass-stepper">
+            <!-- Step 1: Submitted -->
+            <div class="pass-step completed">
+              <div class="step-icon"><i class="fas fa-check"></i></div>
+              <div class="step-label">Submitted</div>
+            </div>
+
+            <!-- Step 2: Document Verification -->
+            <div class="pass-step {% if bpass.status == 'APPROVED' %}completed{% elif bpass.status == 'PENDING' %}active{% elif bpass.status == 'REJECTED' %}rejected{% endif %}">
+              <div class="step-icon">
+                {% if bpass.status == 'APPROVED' %}<i class="fas fa-check"></i>
+                {% elif bpass.status == 'REJECTED' %}<i class="fas fa-xmark"></i>
+                {% else %}<i class="fas fa-spinner fa-spin"></i>{% endif %}
+              </div>
+              <div class="step-label">Doc Verify</div>
+            </div>
+
+            <!-- Step 3: Approval -->
+            <div class="pass-step {% if bpass.status == 'APPROVED' %}completed{% elif bpass.status == 'REJECTED' %}rejected{% endif %}">
+              <div class="step-icon">
+                {% if bpass.status == 'APPROVED' %}<i class="fas fa-stamp"></i>
+                {% elif bpass.status == 'REJECTED' %}<i class="fas fa-ban"></i>
+                {% else %}<i class="fas fa-ellipsis"></i>{% endif %}
+              </div>
+              <div class="step-label">Approved</div>
+            </div>
+
+            <!-- Step 4: Pass Generated -->
+            <div class="pass-step {% if bpass.status == 'APPROVED' %}completed{% endif %}">
+              <div class="step-icon">
+                {% if bpass.status == 'APPROVED' %}<i class="fas fa-qrcode"></i>
+                {% else %}<i class="fas fa-lock"></i>{% endif %}
+              </div>
+              <div class="step-label">Pass Generated</div>
+            </div>
           </div>
         </div>
 
-        <div class="d-flex justify-content-between align-items-center pt-3 border-top border-secondary">
-          <span class="small text-light">Total Fare: <strong class="text-warning fs-5">₹{{ bpass.total_fare }}</strong></span>
-          <span class="small text-light opacity-75">Applied: {{ bpass.applied_at|date:"d M Y" }}</span>
+        <!-- Digital Pass Card Details -->
+        <div class="digital-pass-card">
+          <div class="row g-2 small text-light opacity-90">
+            <div class="col-6">
+              <span class="d-block text-uppercase" style="font-size:0.68rem;opacity:0.7;">Applicant Name</span>
+              <strong class="text-white">{{ bpass.applicant_name }}</strong>
+            </div>
+            <div class="col-6">
+              <span class="d-block text-uppercase" style="font-size:0.68rem;opacity:0.7;">Route</span>
+              <strong class="text-white">{{ bpass.route.route_name|default:"All City Routes" }}</strong>
+            </div>
+            <div class="col-6 mt-2">
+              <span class="d-block text-uppercase" style="font-size:0.68rem;opacity:0.7;">Valid From</span>
+              <strong class="text-white">{{ bpass.valid_from|default:"Pending Approval" }}</strong>
+            </div>
+            <div class="col-6 mt-2">
+              <span class="d-block text-uppercase" style="font-size:0.68rem;opacity:0.7;">Valid Until</span>
+              <strong class="text-white">{{ bpass.valid_to|default:"Pending Approval" }}</strong>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center pt-3 mt-3 border-top border-secondary">
+            <span class="small text-light">Pass Fare: <strong class="text-warning fs-5">₹{{ bpass.total_fare }}</strong></span>
+            {% if bpass.status == 'APPROVED' %}
+              <span class="badge bg-success"><i class="fas fa-qrcode me-1"></i>Active QR Pass</span>
+            {% else %}
+              <span class="badge bg-secondary">In Verification</span>
+            {% endif %}
+          </div>
         </div>
+
       </div>
     </div>
     {% empty %}

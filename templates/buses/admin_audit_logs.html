@@ -1,0 +1,173 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.audit-card {
+  border: none;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+}
+.badge-action {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 8px;
+}
+.badge-pass-approved { background: #d1e7dd; color: #0f5132; }
+.badge-pass-rejected { background: #f8d7da; color: #842029; }
+.badge-schedule-created { background: #cff4fc; color: #055160; }
+.badge-schedule-updated { background: #fff3cd; color: #664d03; }
+.badge-schedule-deleted { background: #f8d7da; color: #842029; }
+.badge-status-changed { background: #e2e3e5; color: #41464b; }
+.badge-general { background: #eef6ff; color: #1E3A5F; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 px-4">
+  
+  <!-- Header -->
+  <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <div class="d-flex align-items-center gap-3">
+      <div class="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
+           style="width:52px;height:52px;background:linear-gradient(135deg,#1E3A5F,#2980B9);">
+        <i class="fas fa-user-shield text-white fa-lg"></i>
+      </div>
+      <div>
+        <h4 class="fw-black mb-0" style="color:var(--brand-primary);">Admin Activity Audit Trail</h4>
+        <small class="text-muted">Track which Admin user approved passes or modified bus schedules & when</small>
+      </div>
+    </div>
+    
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge rounded-pill bg-dark px-3 py-2 fw-semibold">
+        <i class="fas fa-database me-1 text-warning"></i>Total Log Entries: {{ total_logs_count }}
+      </span>
+      <a href="{% url 'buses:admin_dashboard' %}" class="btn btn-outline-primary rounded-3 fw-bold">
+        <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+      </a>
+    </div>
+  </div>
+
+  <!-- Filter & Search Bar -->
+  <div class="audit-card p-3 mb-4">
+    <form method="GET" class="row g-3 align-items-center">
+      <div class="col-md-4">
+        <div class="input-group">
+          <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span>
+          <input type="text" name="q" value="{{ query }}" class="form-control bg-light border-start-0 shadow-none" placeholder="Search target item, details, or admin name...">
+        </div>
+      </div>
+
+      <div class="col-md-3">
+        <select name="action" class="form-select bg-light shadow-none">
+          <option value="">All Action Types</option>
+          {% for code, label in action_choices %}
+            <option value="{{ code }}" {% if current_action == code %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-3">
+        <select name="user" class="form-select bg-light shadow-none">
+          <option value="">All Admin Users</option>
+          {% for u in admin_users %}
+            <option value="{{ u.id }}" {% if current_user == u.id|stringformat:"i" %}selected{% endif %}>
+              {{ u.get_full_name|default:u.username }} (@{{ u.username }})
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-2 d-flex gap-2">
+        <button type="submit" class="btn btn-primary rounded-3 fw-bold w-100">
+          <i class="fas fa-filter me-1"></i>Filter
+        </button>
+        {% if query or current_action or current_user %}
+          <a href="{% url 'buses:admin_audit_logs' %}" class="btn btn-light border rounded-3"><i class="fas fa-undo"></i></a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+
+  <!-- Logs Table -->
+  <div class="audit-card overflow-hidden">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light small text-uppercase">
+          <tr>
+            <th class="ps-4 py-3">Timestamp</th>
+            <th>Admin User</th>
+            <th>Action Type</th>
+            <th>Target Item</th>
+            <th>Details / Activity Summary</th>
+            <th class="pe-4 text-end">IP Address</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if audit_logs %}
+            {% for log in audit_logs %}
+            <tr>
+              <td class="ps-4 small text-nowrap">
+                <i class="far fa-clock me-1 text-primary"></i>
+                <strong>{{ log.timestamp|date:"d M Y" }}</strong>
+                <small class="text-muted d-block">{{ log.timestamp|time:"H:i:s" }}</small>
+              </td>
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold" style="width:32px;height:32px;font-size:0.75rem;">
+                    {{ log.admin_user.first_name|first|upper|default:log.admin_user.username|first|upper }}
+                  </div>
+                  <div>
+                    <span class="fw-bold small text-dark d-block">{{ log.admin_user.get_full_name|default:log.admin_user.username }}</span>
+                    <small class="text-muted">@{{ log.admin_user.username }}</small>
+                  </div>
+                </div>
+              </td>
+              <td>
+                {% if log.action_type == 'PASS_APPROVED' %}
+                  <span class="badge-action badge-pass-approved"><i class="fas fa-check-circle me-1"></i>Pass Approved</span>
+                {% elif log.action_type == 'PASS_REJECTED' %}
+                  <span class="badge-action badge-pass-rejected"><i class="fas fa-times-circle me-1"></i>Pass Rejected</span>
+                {% elif log.action_type == 'SCHEDULE_CREATED' %}
+                  <span class="badge-action badge-schedule-created"><i class="fas fa-plus-circle me-1"></i>Schedule Created</span>
+                {% elif log.action_type == 'SCHEDULE_UPDATED' %}
+                  <span class="badge-action badge-schedule-updated"><i class="fas fa-edit me-1"></i>Schedule Changed</span>
+                {% elif log.action_type == 'SCHEDULE_DELETED' %}
+                  <span class="badge-action badge-schedule-deleted"><i class="fas fa-trash me-1"></i>Schedule Deleted</span>
+                {% elif log.action_type == 'SCHEDULE_STATUS_CHANGED' %}
+                  <span class="badge-action badge-status-changed"><i class="fas fa-sync me-1"></i>Status Changed</span>
+                {% else %}
+                  <span class="badge-action badge-general">{{ log.get_action_type_display }}</span>
+                {% endif %}
+              </td>
+              <td>
+                <code class="fw-bold small text-primary">{{ log.target_repr }}</code>
+              </td>
+              <td class="small text-muted" style="max-width:350px;">
+                {{ log.details|default:"No extra details recorded." }}
+              </td>
+              <td class="pe-4 text-end small text-muted font-monospace">
+                {{ log.ip_address|default:"127.0.0.1" }}
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="6" class="text-center py-5 text-muted">
+                <i class="fas fa-folder-open fa-3x mb-3 opacity-25"></i>
+                <p class="mb-0">No audit log entries found matching criteria.</p>
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

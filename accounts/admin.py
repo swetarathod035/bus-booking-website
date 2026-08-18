@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import CustomUser, ConductorProfile, PassengerProfile
+from .models import CustomUser, ConductorProfile, PassengerProfile, AdminAuditLog
 
 
 @admin.register(CustomUser)
@@ -27,3 +27,12 @@ class ConductorProfileAdmin(admin.ModelAdmin):
 class PassengerProfileAdmin(admin.ModelAdmin):
     list_display = ['user', 'loyalty_points', 'preferred_payment']
     search_fields = ['user__username', 'user__email']
+
+
+@admin.register(AdminAuditLog)
+class AdminAuditLogAdmin(admin.ModelAdmin):
+    list_display = ['admin_user', 'action_type', 'target_repr', 'timestamp', 'ip_address']
+    list_filter = ['action_type', 'timestamp']
+    search_fields = ['admin_user__username', 'target_repr', 'details']
+    readonly_fields = ['admin_user', 'action_type', 'target_repr', 'details', 'ip_address', 'timestamp']
+

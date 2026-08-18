@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% block title %}Bus Pass Applications{% endblock %}
+{% block extra_css %}<style>.admin-layout{display:flex;min-height:calc(100vh - 60px);}.admin-content{margin-left:260px;flex:1;padding:2rem;}.sidebar-link{display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:10px;color:rgba(255,255,255,0.75);text-decoration:none;font-size:0.875rem;transition:all 0.2s;margin-bottom:2px;}.sidebar-link:hover{background:rgba(255,255,255,0.12);color:#fff;}</style>{% endblock %}
+{% block content %}
+<div class="admin-layout">
+  {% include 'partials/sidebar_admin.html' %}
+  <div class="admin-content">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h4 class="fw-black mb-0" style="color:var(--brand-primary);">Bus Pass Applications</h4>
+        <small class="text-muted">Review and approve passenger pass applications</small>
+      </div>
+      <a href="{% url 'bookings:admin_scheme_list' %}" class="btn rounded-3 fw-semibold btn-outline-primary px-4">
+        <i class="fas fa-cog me-2"></i>Manage Schemes
+      </a>
+    </div>
+
+    <!-- Filter -->
+    <div class="d-flex flex-wrap gap-2 mb-3">
+      <a href="{% url 'bookings:admin_pass_list' %}" class="btn btn-sm rounded-pill {% if not current_status %}btn-primary{% else %}btn-outline-secondary{% endif %} px-3">All</a>
+      {% for val, label in status_choices %}
+        <a href="?status={{ val }}" class="btn btn-sm rounded-pill {% if current_status == val %}btn-primary{% else %}btn-outline-secondary{% endif %} px-3">{{ label }}</a>
+      {% endfor %}
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead style="background:#f8f9fa;">
+            <tr><th class="py-3 ps-4">Pass #</th><th>Passenger</th><th>Scheme</th><th>Applied</th><th>Status</th><th>Actions</th></tr>
+          </thead>
+          <tbody>
+            {% for pass in passes %}
+            <tr>
+              <td class="ps-4"><code class="small">{{ pass.pass_number }}</code></td>
+              <td>
+                <div class="fw-semibold small">{{ pass.passenger.get_full_name }}</div>
+                <small class="text-muted">{{ pass.passenger.email }}</small>
+                {% if pass.institution_name %}<div class="badge mt-1" style="background:#f0f4ff;color:#1E3A5F;font-size:0.68rem;">{{ pass.institution_name }}</div>{% endif %}
+              </td>
+              <td class="small">{{ pass.scheme.name }}</td>
+              <td class="small">{{ pass.created_at|date:"d M Y" }}</td>
+              <td>
+                <span class="badge rounded-pill
+                  {% if pass.status == 'ACTIVE' %}bg-success
+                  {% elif pass.status == 'PENDING' %}bg-warning text-dark
+                  {% elif pass.status == 'REJECTED' %}bg-danger
+                  {% else %}bg-secondary{% endif %}">
+                  {{ pass.get_status_display }}
+                </span>
+              </td>
+              <td>
+                {% if pass.status == 'PENDING' %}
+                <div class="d-flex gap-1">
+                  <form method="POST" action="{% url 'bookings:admin_approve_pass' pass.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="approve">
+                    <button type="submit" class="btn btn-sm rounded-2 fw-semibold"
+                            style="background:#27AE60;color:#fff;border:none;">
+                      <i class="fas fa-check me-1"></i>Approve
+                    </button>
+                  </form>
+                  <form method="POST" action="{% url 'bookings:admin_approve_pass' pass.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="reject">
+                    <input type="hidden" name="reason" value="Does not meet eligibility criteria.">
+                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-2">
+                      <i class="fas fa-times me-1"></i>Reject
+                    </button>
+                  </form>
+                </div>
+                {% else %}
+                  <span class="text-muted small">—</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-center py-5 text-muted">No pass applications found.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

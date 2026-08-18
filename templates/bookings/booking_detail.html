@@ -19,7 +19,6 @@
     </span>
   </div>
 
-
   <!-- Journey card -->
   <div class="card border-0 shadow-sm rounded-4 p-4 mb-3">
     <h6 class="fw-bold mb-3" style="color:var(--brand-primary);"><i class="fas fa-route me-2"></i>Journey Details</h6>
@@ -32,6 +31,39 @@
       <div class="col-md-6"><small class="text-muted">To</small><div class="fw-semibold">{{ booking.alighting_stop }}</div></div>
       <div class="col-md-6"><small class="text-muted">Seats</small><div class="fw-semibold">{% for s in booking.seats.all %}<span class="badge me-1" style="background:#eef6ff;color:#1E3A5F;">{{ s.seat_number }}</span>{% endfor %}</div></div>
       <div class="col-md-6"><small class="text-muted">Passengers</small><div class="fw-semibold">{{ booking.num_passengers }}</div></div>
+    </div>
+  </div>
+
+  <!-- ─── OFFLINE DIGITAL TICKET (SMS / WHATSAPP INTEGRATION) ─────────────── -->
+  <div class="card border-0 shadow-sm rounded-4 p-4 mb-3" style="background:#f8fafc; border:1px dashed #cbd5e1 !important;">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h6 class="fw-bold mb-0 text-primary"><i class="fas fa-mobile-retro me-2"></i>Offline Digital Ticket (SMS / WhatsApp)</h6>
+      <span class="badge bg-success text-white px-2 py-1 small">Offline Verification Ready</span>
+    </div>
+    <p class="small text-muted mb-3">Save or send this formatted digital ticket to your phone via SMS/WhatsApp for verification without internet connection.</p>
+    
+    <div class="p-3 bg-white rounded-3 border text-monospace small mb-3" id="offlineTicketText" style="font-family:monospace; white-space:pre-wrap;">🚌 ANANDBUS OFFICIAL DIGITAL TICKET
+PNR: {{ booking.short_id }}
+Passenger: {{ booking.passenger_name|default:request.user.get_full_name }}
+Route: {{ booking.schedule.route.route_name }}
+From: {{ booking.boarding_stop }} ➔ To: {{ booking.alighting_stop }}
+Date: {{ booking.schedule.travel_date|date:"d M Y" }} | Dep: {{ booking.schedule.departure_time|time:"H:i" }}
+Bus: {{ booking.schedule.bus.bus_name }} ({{ booking.schedule.bus.bus_number }})
+Seats: {% for s in booking.seats.all %}{{ s.seat_number }}{% if not forloop.last %}, {% endif %}{% endfor %}
+Total Paid: ₹{{ booking.total_amount }} | Status: CONFIRMED
+Helpline: 1800-233-6666
+(Valid as official offline travel proof)</div>
+
+    <div class="d-flex flex-wrap gap-2">
+      <button class="btn btn-outline-success btn-sm rounded-3 fw-bold" onclick="shareTicketWhatsApp()">
+        <i class="fab fa-whatsapp me-1"></i>WhatsApp Ticket
+      </button>
+      <button class="btn btn-outline-primary btn-sm rounded-3 fw-bold" onclick="shareTicketSMS()">
+        <i class="fas fa-comment-sms me-1"></i>SMS Ticket
+      </button>
+      <button class="btn btn-outline-secondary btn-sm rounded-3 fw-bold" onclick="copyOfflineTicket()">
+        <i class="fas fa-copy me-1"></i>Copy Ticket Text
+      </button>
     </div>
   </div>
 
@@ -58,8 +90,59 @@
   </div>
   {% endif %}
 
+  <!-- Ride Rating & Review Card -->
+  {% if booking.ride_rating %}
+  <div class="card border-0 shadow-sm rounded-4 p-4 mb-3" style="background:#fffdf0; border:1px solid #ffeba7 !important;">
+    <h6 class="fw-bold mb-3 text-warning-emphasis"><i class="fas fa-star me-2 text-warning"></i>Ride Rating & Feedback</h6>
+    <div class="row g-2 text-center mb-3">
+      <div class="col-6 col-md-3">
+        <div class="p-2 bg-white rounded border">
+          <small class="text-muted d-block" style="font-size:0.7rem;">Punctuality</small>
+          <span class="fw-bold text-dark">🕒 {{ booking.ride_rating.driver_punctuality }}⭐</span>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="p-2 bg-white rounded border">
+          <small class="text-muted d-block" style="font-size:0.7rem;">Cleanliness</small>
+          <span class="fw-bold text-dark">🧹 {{ booking.ride_rating.bus_cleanliness }}⭐</span>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="p-2 bg-white rounded border">
+          <small class="text-muted d-block" style="font-size:0.7rem;">Staff Behavior</small>
+          <span class="fw-bold text-dark">👔 {{ booking.ride_rating.staff_behavior }}⭐</span>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="p-2 bg-white rounded border">
+          <small class="text-muted d-block" style="font-size:0.7rem;">Overall</small>
+          <span class="fw-bold text-warning">⭐ {{ booking.ride_rating.overall_rating }}/5</span>
+        </div>
+      </div>
+    </div>
+    {% if booking.ride_rating.comment %}
+      <div class="p-3 bg-white rounded border small text-muted">
+        <i class="fas fa-quote-left me-1 text-warning"></i>{{ booking.ride_rating.comment }}
+      </div>
+    {% endif %}
+  </div>
+  {% else %}
+  <div class="card border-0 shadow-sm rounded-4 p-4 mb-3 bg-warning-subtle text-dark">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div>
+        <h6 class="fw-bold mb-1"><i class="fas fa-star text-warning me-2"></i>Rate your Ride Experience</h6>
+        <small class="text-muted">How was the driver punctuality and bus cleanliness during this journey?</small>
+      </div>
+      <a href="{% url 'bookings:passenger_dashboard' %}" class="btn btn-warning fw-bold rounded-pill px-4">
+        <i class="fas fa-star me-1"></i>Rate Now on Dashboard
+      </a>
+    </div>
+  </div>
+  {% endif %}
+
   <!-- Actions -->
   <div class="d-flex flex-wrap gap-3">
+
     {% if booking.status == 'CONFIRMED' %}
       <a href="{% url 'bookings:download_ticket' booking.booking_id %}" class="btn btn-lg px-4 rounded-3 fw-semibold"
          style="background:#1E3A5F;color:#fff;border:none;">
@@ -82,4 +165,22 @@
     {% endif %}
   </div>
 </div>
+
+<script>
+function copyOfflineTicket() {
+  const text = document.getElementById('offlineTicketText').innerText;
+  navigator.clipboard.writeText(text);
+  alert('Offline digital ticket text copied to clipboard!');
+}
+
+function shareTicketWhatsApp() {
+  const text = document.getElementById('offlineTicketText').innerText;
+  window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+}
+
+function shareTicketSMS() {
+  const text = document.getElementById('offlineTicketText').innerText;
+  window.location.href = `sms:?body=${encodeURIComponent(text)}`;
+}
+</script>
 {% endblock %}

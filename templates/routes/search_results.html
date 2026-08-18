@@ -12,6 +12,7 @@
 .price-tag { font-size: 1.6rem; font-weight: 800; color: var(--brand-primary); }
 .search-header { background: linear-gradient(135deg, #1E3A5F 0%, #2980B9 100%); border-radius: 16px; }
 .refine-card { border-radius: 16px; border: 1px solid var(--border-color); }
+.connecting-card { border: 2px dashed #3B82F6; background: #eff6ff; border-radius: 16px; }
 </style>
 {% endblock %}
 
@@ -52,10 +53,11 @@
     <div class="alert alert-warning border-0 rounded-3"><i class="fas fa-exclamation-triangle me-2"></i>{{ error }}</div>
   {% endif %}
 
+  <!-- Direct Bus Schedules List -->
   {% if schedules %}
     <div class="d-flex justify-content-between align-items-center mb-3">
       <h5 class="fw-bold mb-0" style="color:var(--brand-primary);">
-        <i class="fas fa-list me-2"></i>{{ schedules|length }} Bus{{ schedules|length|pluralize:"es" }} Found
+        <i class="fas fa-list me-2"></i>{{ schedules|length }} Direct Bus{{ schedules|length|pluralize:"es" }} Found
       </h5>
       <small class="text-muted">Sorted by departure time</small>
     </div>
@@ -101,13 +103,19 @@
             </div>
           </div>
 
-          <!-- Amenities -->
+          <!-- Crowd Density Indicator & Amenities -->
           <div class="col-lg-2">
-            <div class="d-flex flex-wrap gap-1">
-              {% for amenity in schedule.bus.amenities_list %}
-                <span class="amenity-badge">{{ amenity }}</span>
-              {% endfor %}
-              <span class="amenity-badge">{{ schedule.available_seats }} seats left</span>
+            <div class="d-flex flex-column gap-1">
+              <!-- Crowd Density Badge -->
+              <span class="badge bg-{{ schedule.crowd_class|default:'success' }} rounded-pill p-2 fw-semibold text-start shadow-none" style="font-size:0.72rem;">
+                <i class="fas {{ schedule.crowd_icon|default:'fa-users' }} me-1"></i>{{ schedule.crowd_label|default:'Low Capacity' }}
+              </span>
+              <div class="d-flex flex-wrap gap-1 mt-1">
+                {% for amenity in schedule.bus.amenities_list %}
+                  <span class="amenity-badge">{{ amenity }}</span>
+                {% endfor %}
+                <span class="amenity-badge">{{ schedule.available_seats }} seats left</span>
+              </div>
             </div>
           </div>
 
@@ -136,8 +144,63 @@
       </div>
     </div>
     {% endfor %}
+  {% endif %}
 
-  {% elif source_code and dest_code %}
+  <!-- ─── SMART CONNECTING ROUTE SUGGESTION (FARE PREDICTOR) ────────────────── -->
+  {% if connecting_routes %}
+    <div class="mt-5 mb-4">
+      <div class="d-flex align-items-center gap-2 mb-3">
+        <h5 class="fw-bold mb-0 text-primary"><i class="fas fa-diagram-next me-2 text-warning"></i>Smart Connecting Route Suggestions</h5>
+        <span class="badge bg-warning text-dark rounded-pill fw-bold">Connecting Buses Available</span>
+      </div>
+      <p class="text-muted small">No direct bus available? Travel conveniently with our suggested transfer connections across major Anand hubs.</p>
+
+      {% for conn in connecting_routes %}
+      <div class="card connecting-card mb-3 p-3">
+        <div class="row align-items-center g-3">
+          <div class="col-lg-8">
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+              <!-- Leg 1 -->
+              <div class="p-3 bg-white rounded-3 shadow-sm border flex-grow-1">
+                <span class="badge bg-primary mb-1">Bus 1</span>
+                <div class="fw-bold text-dark">{{ conn.leg1.bus.bus_name }} ({{ conn.leg1.bus.bus_number }})</div>
+                <small class="text-muted d-block">{{ conn.leg1.departure_time|time:"H:i" }} Dep ➔ {{ conn.leg1.arrival_time|time:"H:i" }} Arr</small>
+                <small class="text-primary fw-semibold">{{ source_stop.name|default:source_code }} ➔ {{ conn.transfer_stop }}</small>
+              </div>
+
+              <!-- Layover Interchange Hub -->
+              <div class="text-center px-2">
+                <span class="badge bg-secondary rounded-pill py-2 px-3 fw-bold">
+                  <i class="fas fa-rotate me-1"></i>Transfer @ {{ conn.transfer_stop }}<br>
+                  <small class="text-warning">({{ conn.layover_minutes }} min layover)</small>
+                </span>
+              </div>
+
+              <!-- Leg 2 -->
+              <div class="p-3 bg-white rounded-3 shadow-sm border flex-grow-1">
+                <span class="badge bg-success mb-1">Bus 2</span>
+                <div class="fw-bold text-dark">{{ conn.leg2.bus.bus_name }} ({{ conn.leg2.bus.bus_number }})</div>
+                <small class="text-muted d-block">{{ conn.leg2.departure_time|time:"H:i" }} Dep ➔ {{ conn.leg2.arrival_time|time:"H:i" }} Arr</small>
+                <small class="text-success fw-semibold">{{ conn.transfer_stop }} ➔ {{ dest_stop.name|default:dest_code }}</small>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-lg-4 text-lg-end">
+            <small class="text-muted d-block">Combined Total Fare</small>
+            <div class="price-tag text-success mb-2">₹{{ conn.total_fare }}</div>
+            <a href="{% url 'bookings:select_seats' conn.leg1.id %}?from={{ source_code }}&to={{ dest_code }}&seats={{ num_seats }}&date={{ travel_date }}"
+               class="btn btn-success fw-semibold rounded-pill px-4 py-2">
+              <i class="fas fa-route me-1"></i>Book Connecting Trip
+            </a>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if not schedules and not connecting_routes and source_code and dest_code %}
     <div class="text-center py-5">
       <i class="fas fa-bus-slash fa-4x text-muted mb-3"></i>
       <h4 class="text-muted">No buses available for this route on {{ travel_date }}</h4>
@@ -146,12 +209,13 @@
         <i class="fas fa-search me-2"></i>New Search
       </a>
     </div>
-  {% else %}
+  {% elif not schedules and not connecting_routes %}
     <div class="text-center py-5">
       <i class="fas fa-search fa-4x text-muted mb-3"></i>
       <h4 class="text-muted">Enter your journey details to find buses</h4>
     </div>
   {% endif %}
+
 </div>
 {% endblock %}
 

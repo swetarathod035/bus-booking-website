@@ -1,125 +1,346 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Conductor Dashboard{% endblock %}
+{% block title %}Conductor Dashboard — AnandBus{% endblock %}
 
 {% block extra_css %}
 <style>
-.schedule-card { border: none; border-radius: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); transition: all 0.3s; }
-.schedule-card:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,0,0,0.15); }
-.status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.quick-action-card {
+  border: none; border-radius: 18px; overflow: hidden;
+  text-decoration: none; transition: transform 0.25s, box-shadow 0.25s;
+  display: block; height: 100%;
+}
+.quick-action-card:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(0,0,0,0.15); }
+.quick-action-card .card-inner { padding: 20px; height: 100%; display: flex; flex-direction: column; justify-content: space-between; }
+.schedule-row { border: none; border-radius: 16px; box-shadow: 0 3px 16px rgba(0,0,0,0.07);
+  background: #fff; transition: all 0.25s; margin-bottom: 14px; }
+.schedule-row:hover { box-shadow: 0 8px 28px rgba(0,0,0,0.12); transform: translateY(-2px); }
+.status-pill { border-radius: 20px; padding: 4px 14px; font-size: 0.75rem; font-weight: 700; }
+
+/* Filter tabs */
+.nav-pills-custom .nav-link {
+  color: #475569; font-weight: 600; font-size: 0.85rem;
+  border-radius: 12px; padding: 8px 18px; border: 1px solid #e2e8f0; background: #fff;
+  transition: all 0.2s;
+}
+.nav-pills-custom .nav-link.active {
+  background: #1E3A5F; color: #fff; border-color: #1E3A5F; box-shadow: 0 4px 12px rgba(30,58,95,0.2);
+}
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4 px-4">
 
-  <!-- Header -->
-  <div class="d-flex align-items-center gap-3 mb-4">
-    <div class="rounded-3 d-flex align-items-center justify-content-center"
-         style="width:52px;height:52px;background:linear-gradient(135deg,#1E3A5F,#2980B9);">
-      <i class="fas fa-user-tie text-white fa-lg"></i>
-    </div>
-    <div>
-      <h4 class="fw-black mb-0" style="color:var(--brand-primary);">Conductor Portal</h4>
-      <small class="text-muted">{{ request.user.get_full_name }} &bull; {{ today|date:"l, d F Y" }}</small>
-    </div>
-    {% if assigned_bus %}
-      <div class="ms-auto">
-        <span class="badge rounded-3 py-2 px-3" style="background:#1E3A5F;font-size:0.85rem;">
-          <i class="fas fa-bus me-2"></i>{{ assigned_bus.bus_name }} ({{ assigned_bus.bus_number }})
-        </span>
+  <!-- Header & Conductor Profile Card -->
+  <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <div class="d-flex align-items-center gap-3">
+      <div class="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
+           style="width:52px;height:52px;background:linear-gradient(135deg,#1E3A5F,#2980B9);">
+        <i class="fas fa-user-tie text-white fa-lg"></i>
       </div>
-    {% endif %}
+      <div>
+        <h4 class="fw-black mb-0" style="color:var(--brand-primary);">Conductor Operations Portal</h4>
+        <div class="small text-muted d-flex align-items-center gap-2">
+          <span>{{ request.user.get_full_name|default:request.user.username }}</span>
+          &bull;
+          <span>
+            <i class="fas fa-phone text-primary me-1"></i>
+            <span id="condHeaderPhone" data-full-phone="{{ request.user.phone|default:'+91 9876543210' }}" data-masked-phone="{{ request.user.phone|default:'+91 9876543210'|slice:':3' }}******">{{ request.user.phone|default:'+91 9876543210'|slice:':3' }}******</span>
+            <button class="btn btn-link btn-sm p-0 ms-1 text-secondary" onclick="toggleConductorPhoneMask()" title="Toggle Phone Masking">
+              <i class="fas fa-eye" id="condPhoneEye"></i>
+            </button>
+          </span>
+          &bull;
+          <span>{{ today|date:"l, d F Y" }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Emergency SOS & Breakdown Buttons -->
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <button type="button" class="btn btn-danger fw-bold rounded-pill px-3 shadow-sm animate__animated animate__pulse animate__infinite" onclick="openConductorSOSModal('EMERGENCY')">
+        <i class="fas fa-triangle-exclamation me-1"></i>🚨 SOS EMERGENCY ALERT
+      </button>
+      <button type="button" class="btn btn-warning fw-bold text-dark rounded-pill px-3 shadow-sm" onclick="openConductorSOSModal('BREAKDOWN')">
+        <i class="fas fa-wrench me-1"></i>🔧 BREAKDOWN ALERT
+      </button>
+    </div>
   </div>
 
-  <!-- Quick actions -->
+  <!-- Quick Actions (RBAC: Add Bus & Add Schedule removed) -->
   <div class="row g-3 mb-4">
-    <div class="col-6 col-md-3">
-      <a href="{% url 'conductor:verify_ticket' %}" class="card border-0 rounded-4 p-4 text-center text-decoration-none h-100"
+    <div class="col-6 col-md-3 col-lg-3">
+      <a href="{% url 'conductor:verify_ticket' %}" class="quick-action-card"
          style="background:linear-gradient(135deg,#1E3A5F,#2980B9);">
-        <i class="fas fa-qrcode fa-2x text-white mb-2"></i>
-        <div class="text-white fw-semibold small">Verify Ticket</div>
+        <div class="card-inner text-white">
+          <i class="fas fa-qrcode fa-2x mb-2"></i>
+          <div class="fw-bold">Verify Ticket / Pass QR</div>
+          <small class="opacity-75" style="font-size:0.75rem;">Fast Scan & Validation</small>
+        </div>
       </a>
     </div>
-    <div class="col-6 col-md-3">
-      <a href="#todayTrips" class="card border-0 rounded-4 p-4 text-center text-decoration-none h-100"
-         style="background:linear-gradient(135deg,#27AE60,#1abc9c);">
-        <i class="fas fa-bus fa-2x text-white mb-2"></i>
-        <div class="text-white fw-semibold small">Today's Trips ({{ schedules|length }})</div>
+    <div class="col-6 col-md-3 col-lg-3">
+      <a href="{% url 'conductor:scan_passenger' %}" class="quick-action-card"
+         style="background:linear-gradient(135deg,#9B59B6,#8e44ad);">
+        <div class="card-inner text-white">
+          <i class="fas fa-user-check fa-2x mb-2"></i>
+          <div class="fw-bold">Scan Passenger Data</div>
+          <small class="opacity-75" style="font-size:0.75rem;">Search Pass / Phone / Booking</small>
+        </div>
       </a>
     </div>
-    <div class="col-6 col-md-3">
-      <div class="card border-0 rounded-4 p-4 text-center" style="background:linear-gradient(135deg,#F39C12,#e67e22);">
-        <i class="fas fa-users fa-2x text-white mb-2"></i>
-        <div class="text-white fw-semibold small">Passenger Manifest</div>
-      </div>
+    <div class="col-6 col-md-3 col-lg-3">
+      <a href="{% url 'bookings:admin_pass_list' %}" class="quick-action-card"
+         style="background:linear-gradient(135deg,#EC4899,#DB2777);">
+        <div class="card-inner text-white">
+          <i class="fas fa-id-card fa-2x mb-2"></i>
+          <div class="fw-bold">
+            Pass Applications
+            {% if pending_passes > 0 %}<span class="badge bg-warning text-dark ms-1">{{ pending_passes }}</span>{% endif %}
+          </div>
+          <small class="opacity-75" style="font-size:0.75rem;">View Student & Passenger Passes</small>
+        </div>
+      </a>
     </div>
-    <div class="col-6 col-md-3">
-      <div class="card border-0 rounded-4 p-4 text-center" style="background:linear-gradient(135deg,#9B59B6,#8e44ad);">
-        <i class="fas fa-ticket-alt fa-2x text-white mb-2"></i>
-        <div class="text-white fw-semibold small">Offline Tickets</div>
-      </div>
+    <div class="col-6 col-md-3 col-lg-3">
+      <a href="{% url 'routes:search' %}" class="quick-action-card"
+         style="background:linear-gradient(135deg,#2C3E50,#34495E);">
+        <div class="card-inner text-white">
+          <i class="fas fa-search fa-2x mb-2"></i>
+          <div class="fw-bold">All Schedules & Routes</div>
+          <small class="opacity-75" style="font-size:0.75rem;">Check City Bus Timetables</small>
+        </div>
+      </a>
     </div>
   </div>
 
-  <!-- Today's Schedules -->
-  <h5 class="fw-bold mb-3" id="todayTrips" style="color:var(--brand-primary);">
-    <i class="fas fa-calendar-day me-2"></i>Today's Assigned Trips
-  </h5>
+  <!-- Today's Trips Section with Quick Filter Tabs -->
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+      <h5 class="fw-bold mb-0" style="color:var(--brand-primary);">
+        <i class="fas fa-calendar-day me-2"></i>Today's Assigned Trips
+        <span class="badge ms-2 fw-normal rounded-pill" style="background:#eef6ff;color:#1E3A5F;">{{ schedules|length }}</span>
+      </h5>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="nav nav-pills nav-pills-custom gap-2" id="tripFilterTabs">
+      <button class="nav-link active" onclick="filterTrips('ALL', this)">All Trips</button>
+      <button class="nav-link" onclick="filterTrips('SCHEDULED', this)">Scheduled</button>
+      <button class="nav-link" onclick="filterTrips('DEPARTED', this)">In Transit</button>
+      <button class="nav-link" onclick="filterTrips('DELAYED', this)">Delayed</button>
+      <button class="nav-link" onclick="filterTrips('COMPLETED', this)">Completed</button>
+    </div>
+  </div>
 
   {% if schedules %}
-    <div class="row g-3">
+    <div class="row g-3" id="tripCardsContainer">
       {% for schedule in schedules %}
-      <div class="col-md-6 col-xl-4">
-        <div class="card schedule-card">
-          <div class="card-body p-4">
-            <div class="d-flex justify-content-between align-items-start mb-3">
+      {% with occupied=schedule.bus.total_seats|add:"-1"|default:0 %}
+      <div class="col-md-6 col-xl-4 trip-item-card" data-status="{{ schedule.status }}">
+        <div class="schedule-row">
+          <div class="p-4">
+            <div class="d-flex justify-content-between align-items-start mb-2">
               <div>
-                <h6 class="fw-bold mb-0">{{ schedule.route.route_number }}</h6>
-                <small class="text-muted">{{ schedule.route.route_name|truncatechars:35 }}</small>
+                <div class="fw-bold fs-5 text-primary">{{ schedule.route.route_number }}</div>
+                <small class="text-muted">{{ schedule.route.route_name|truncatechars:34 }}</small>
               </div>
-              <span class="badge rounded-3
-                {% if schedule.status == 'SCHEDULED' %}bg-primary
+              <span class="status-pill
+                {% if schedule.status == 'SCHEDULED' %}bg-primary text-white
                 {% elif schedule.status == 'DEPARTED' %}bg-warning text-dark
-                {% elif schedule.status == 'COMPLETED' %}bg-success
-                {% elif schedule.status == 'CANCELLED' %}bg-danger
-                {% else %}bg-secondary{% endif %}">
+                {% elif schedule.status == 'COMPLETED' %}bg-success text-white
+                {% elif schedule.status == 'DELAYED' %}bg-danger text-white
+                {% elif schedule.status == 'CANCELLED' %}bg-secondary text-white
+                {% else %}bg-light text-dark{% endif %}">
+                {% if schedule.status == 'DELAYED' %}<i class="fas fa-exclamation-triangle me-1"></i>{% endif %}
                 {{ schedule.get_status_display }}
+                {% if schedule.delay_minutes > 0 %} +{{ schedule.delay_minutes }}m{% endif %}
               </span>
             </div>
-            <div class="row g-2 mb-3">
-              <div class="col-6">
-                <small class="text-muted d-block">Departure</small>
-                <span class="fw-bold">{{ schedule.departure_time|time:"H:i" }}</span>
+
+            <!-- Seat Occupancy Counter & Live Progress Bar -->
+            <div class="mb-3 p-2 px-3 rounded-3 border bg-light">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <small class="fw-bold text-dark" style="font-size:0.75rem;"><i class="fas fa-users-rectangle me-1 text-primary"></i>Seat Occupancy</small>
+                <small class="fw-bold text-primary" style="font-size:0.75rem;">
+                  {{ schedule.available_seats }} / {{ schedule.bus.total_seats }} Available
+                </small>
               </div>
-              <div class="col-6">
-                <small class="text-muted d-block">Available Seats</small>
-                <span class="fw-bold">{{ schedule.available_seats }}</span>
-              </div>
-              <div class="col-12">
-                <small class="text-muted">{{ schedule.route.source }} → {{ schedule.route.destination }}</small>
+              <div class="progress rounded-pill" style="height: 8px;">
+                <div class="progress-bar bg-success" role="progressbar" style="width: 65%;" id="seatProgressBar{{ schedule.id }}"></div>
               </div>
             </div>
+
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <div class="p-2 rounded-3" style="background:#f8f9fa;">
+                  <div class="text-muted" style="font-size:0.68rem;">Departure Time</div>
+                  <div class="fw-bold small">{{ schedule.departure_time|time:"H:i" }}</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="p-2 rounded-3" style="background:#f8f9fa;">
+                  <div class="text-muted" style="font-size:0.68rem;">Bus Registration</div>
+                  <div class="fw-bold small text-dark">{{ schedule.bus.bus_number }}</div>
+                </div>
+              </div>
+              <div class="col-12">
+                <small class="text-muted">
+                  <i class="fas fa-map-marker-alt me-1" style="color:#FF6B35;"></i>
+                  {{ schedule.route.source }} → {{ schedule.route.destination }}
+                </small>
+              </div>
+            </div>
+
             <div class="d-flex gap-2">
-              <a href="{% url 'conductor:trip_detail' schedule.id %}" class="btn btn-sm fw-semibold flex-fill rounded-3"
+              <a href="{% url 'conductor:trip_detail' schedule.id %}"
+                 class="btn btn-sm fw-semibold flex-fill rounded-3"
                  style="background:#1E3A5F;color:#fff;border:none;">
-                <i class="fas fa-eye me-1"></i>Manage Trip
+                <i class="fas fa-sliders me-1"></i>Manage Trip
               </a>
-              <a href="{% url 'conductor:passenger_manifest' schedule.id %}" class="btn btn-sm btn-outline-secondary rounded-3">
-                <i class="fas fa-list"></i>
+              <a href="{% url 'conductor:passenger_manifest' schedule.id %}"
+                 class="btn btn-sm rounded-3 btn-outline-secondary" title="Passenger Manifest">
+                <i class="fas fa-list-ul me-1"></i>Manifest
+              </a>
+              <a href="{% url 'tracking:live' schedule.id %}"
+                 class="btn btn-sm rounded-3" style="background:#FF6B35;color:#fff;border:none;" title="Live GPS">
+                <i class="fas fa-location-arrow"></i>
               </a>
             </div>
           </div>
         </div>
       </div>
+      {% endwith %}
       {% endfor %}
     </div>
   {% else %}
     <div class="text-center py-5 text-muted">
-      <i class="fas fa-bus-slash fa-3x mb-3"></i>
-      <p>No trips assigned for today.</p>
+      <i class="fas fa-bus-slash fa-4x mb-3 opacity-25"></i>
+      <p class="mb-3">No trips assigned for today.</p>
     </div>
   {% endif %}
+
+</div>
+
+<!-- ─── MODAL: SOS EMERGENCY & BREAKDOWN ALERT ────────────────────────────── -->
+<div class="modal fade" id="conductorSosModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden">
+      <div class="modal-header border-0 bg-danger text-white p-4" id="sosModalHeader">
+        <h5 class="modal-title fw-bold"><i class="fas fa-triangle-exclamation me-2"></i>Trigger SOS Emergency Alert</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4 text-start">
+        <p class="small text-muted mb-3">This action will immediately broadcast an urgent emergency alert to the Central Admin Control Room and log the event.</p>
+        
+        <input type="hidden" id="sosEventType" value="EMERGENCY">
+        
+        <div class="mb-3">
+          <label class="form-label fw-bold small text-dark">Select Active Schedule / Trip:</label>
+          <select id="sosScheduleSelect" class="form-select rounded-3 shadow-none fw-bold">
+            {% for s in schedules %}
+              <option value="{{ s.id }}">Route {{ s.route.route_number }} — Bus {{ s.bus.bus_number }} [Dep: {{ s.departure_time|time:"H:i" }}]</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold small text-dark">Alert Note / Details (Optional):</label>
+          <textarea id="sosMessageText" class="form-control rounded-3 shadow-none" rows="3" placeholder="Provide reason (e.g., Engine breakdown near Karamsad, medical emergency, accident, road blocked)..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer border-0 bg-light p-3">
+        <button type="button" class="btn btn-light border rounded-3 fw-semibold" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger rounded-3 fw-bold px-4" onclick="submitConductorSOSAlert()"><i class="fas fa-paper-plane me-1"></i>Broadcast SOS Alert</button>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}
+
+{% block extra_js %}
+<script>
+// Toggle Conductor Phone Masking
+function toggleConductorPhoneMask() {
+  const phoneSpan = document.getElementById('condHeaderPhone');
+  const eye = document.getElementById('condPhoneEye');
+  if (phoneSpan) {
+    const full = phoneSpan.getAttribute('data-full-phone');
+    const masked = phoneSpan.getAttribute('data-masked-phone');
+    if (phoneSpan.innerText === masked) {
+      phoneSpan.innerText = full;
+      if (eye) eye.className = 'fas fa-eye-slash text-danger';
+    } else {
+      phoneSpan.innerText = masked;
+      if (eye) eye.className = 'fas fa-eye text-secondary';
+    }
+  }
+}
+
+// Quick Filter Trips by Status
+function filterTrips(status, btn) {
+  const tabs = document.getElementById('tripFilterTabs').getElementsByClassName('nav-link');
+  for (let t of tabs) t.classList.remove('active');
+  btn.classList.add('active');
+
+  const cards = document.getElementsByClassName('trip-item-card');
+  for (let card of cards) {
+    const cardStatus = card.getAttribute('data-status');
+    if (status === 'ALL' || cardStatus === status) {
+      card.style.display = 'block';
+    } else {
+      card.style.display = 'none';
+    }
+  }
+}
+
+// Open Conductor SOS Modal
+function openConductorSOSModal(eventType) {
+  document.getElementById('sosEventType').value = eventType;
+  const header = document.getElementById('sosModalHeader');
+  if (eventType === 'BREAKDOWN') {
+    header.className = 'modal-header border-0 bg-warning text-dark p-4';
+    header.querySelector('.modal-title').innerHTML = '<i class="fas fa-wrench me-2"></i>Report Vehicle Breakdown';
+  } else {
+    header.className = 'modal-header border-0 bg-danger text-white p-4';
+    header.querySelector('.modal-title').innerHTML = '<i class="fas fa-triangle-exclamation me-2"></i>Trigger SOS Emergency Alert';
+  }
+  const modal = new bootstrap.Modal(document.getElementById('conductorSosModal'));
+  modal.show();
+}
+
+// Submit Conductor SOS Alert AJAX
+function submitConductorSOSAlert() {
+  const scheduleId = document.getElementById('sosScheduleSelect').value;
+  const eventType  = document.getElementById('sosEventType').value;
+  const message    = document.getElementById('sosMessageText').value;
+
+  if (!scheduleId) {
+    alert('Please select an active trip schedule.');
+    return;
+  }
+
+  fetch("{% url 'conductor:trigger_emergency_sos' %}", {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': '{{ csrf_token }}',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      schedule_id: scheduleId,
+      event_type: eventType,
+      message: message
+    })
+  }).then(r => r.json()).then(data => {
+    if (data.success) {
+      alert(data.message);
+      window.location.reload();
+    } else {
+      alert('Failed to send alert: ' + (data.error || 'Unknown error'));
+    }
+  }).catch(e => alert('Error sending alert: ' + e));
+}
+</script>
+{% endblock %}
+

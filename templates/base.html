@@ -54,6 +54,7 @@
       <ul class="navbar-nav me-auto gap-1">
         <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" href="{% url 'routes:home' %}"><i class="fas fa-home me-1"></i>Home</a></li>
         <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'search' %}active{% endif %}" href="{% url 'routes:search' %}"><i class="fas fa-search me-1"></i>Search Buses</a></li>
+        <li class="nav-item"><a class="nav-link {% if request.resolver_match.app_name == 'tracking' %}active{% endif %}" href="{% url 'tracking:index' %}"><i class="fas fa-location-crosshairs text-warning me-1"></i>Track My Bus</a></li>
         <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'reschedule_ticket_page' %}active{% endif %}" href="{% url 'bookings:reschedule_ticket_page' %}"><i class="fas fa-calendar-alt me-1"></i>Reschedule</a></li>
         <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'cancel_ticket_page' %}active{% endif %}" href="{% url 'bookings:cancel_ticket_page' %}"><i class="fas fa-ban me-1"></i>Cancel Ticket</a></li>
         
@@ -98,20 +99,71 @@
         </li>
         {% if user.is_authenticated %}
           {% if user.is_super_admin %}
-            <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}" href="{% url 'buses:admin_dashboard' %}"><i class="fas fa-chart-line me-1"></i>Admin Dashboard</a></li>
-            <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'bus_list' %}active{% endif %}" href="{% url 'buses:bus_list' %}"><i class="fas fa-bus me-1"></i>Manage Fleet</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}" href="{% url 'buses:admin_dashboard' %}"><i class="fas fa-chart-line me-1"></i><span data-i18n="Admin Dashboard">Admin Dashboard</span></a></li>
+            <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'bus_list' %}active{% endif %}" href="{% url 'buses:bus_list' %}"><i class="fas fa-bus me-1"></i><span data-i18n="Manage Fleet">Manage Fleet</span></a></li>
           {% endif %}
           {% if user.is_conductor %}
-            <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'conductor:dashboard' %}"><i class="fas fa-clipboard-list me-1"></i>My Trips</a></li>
-            <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'verify_ticket' %}active{% endif %}" href="{% url 'conductor:verify_ticket' %}"><i class="fas fa-qrcode me-1"></i>Verify Ticket</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'conductor:dashboard' %}"><i class="fas fa-clipboard-list me-1"></i><span data-i18n="My Trips">My Trips</span></a></li>
+            <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'verify_ticket' %}active{% endif %}" href="{% url 'conductor:verify_ticket' %}"><i class="fas fa-qrcode me-1"></i><span data-i18n="Verify Ticket">Verify Ticket</span></a></li>
           {% endif %}
           {% if user.is_passenger %}
-            <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'passenger_dashboard' %}active{% endif %}" href="{% url 'bookings:passenger_dashboard' %}"><i class="fas fa-ticket-alt me-1"></i>My Bookings</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.resolver_match.url_name == 'passenger_dashboard' %}active{% endif %}" href="{% url 'bookings:passenger_dashboard' %}"><i class="fas fa-ticket-alt me-1"></i><span data-i18n="My Bookings">My Bookings</span></a></li>
           {% endif %}
         {% endif %}
 
       </ul>
+
+      <!-- Multi-Language Switcher, Notification Bell & Auth Buttons -->
       <ul class="navbar-nav align-items-center gap-2">
+        <!-- Language Switcher Pill -->
+        <li class="nav-item">
+          <button class="btn btn-sm btn-outline-warning rounded-pill px-3 fw-bold d-flex align-items-center gap-1 shadow-sm" id="langToggleBtn" onclick="toggleLanguage()" title="Switch Language / ભાષા બદલો">
+            <i class="fas fa-globe text-warning"></i>
+            <span id="currentLangLabel">🇬🇧 EN</span>
+          </button>
+        </li>
+
+        <!-- In-App Notification Bell Icon Dropdown -->
+        {% if user.is_authenticated %}
+        <li class="nav-item dropdown">
+          <a class="nav-link position-relative text-warning px-2" href="#" id="notificationDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Notifications">
+            <i class="fas fa-bell fa-lg"></i>
+            {% if unread_notification_count > 0 %}
+              <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger shadow-sm" id="navNotifBadge" style="font-size:0.65rem;">
+                {{ unread_notification_count }}
+              </span>
+            {% endif %}
+          </a>
+          <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 p-0 overflow-hidden" aria-labelledby="notificationDropdown" style="width:320px; max-height:420px; overflow-y:auto;">
+            <li class="p-3 bg-primary text-white d-flex justify-content-between align-items-center">
+              <h6 class="fw-bold mb-0"><i class="fas fa-bell me-2"></i>Alerts & Notifications</h6>
+              {% if user_notifications %}
+                <button class="btn btn-sm btn-outline-light rounded-pill px-2 py-0 text-white small" onclick="markAllNotificationsRead()" style="font-size:0.7rem;">Mark all read</button>
+              {% endif %}
+            </li>
+            
+            {% if user_notifications %}
+              {% for notif in user_notifications %}
+                <li class="border-bottom">
+                  <a class="dropdown-item p-3 text-wrap {% if not notif.is_read %}bg-light fw-bold{% endif %}" href="{{ notif.link|default:'#' }}">
+                    <div class="d-flex justify-content-between align-items-start mb-1">
+                      <small class="text-primary fw-bold" style="font-size:0.8rem;">{{ notif.title }}</small>
+                      <small class="text-muted" style="font-size:0.68rem;">{{ notif.created_at|timesince }} ago</small>
+                    </div>
+                    <p class="small mb-0 text-muted" style="font-size:0.75rem;">{{ notif.message }}</p>
+                  </a>
+                </li>
+              {% endfor %}
+            {% else %}
+              <li class="p-4 text-center text-muted small">
+                <i class="fas fa-bell-slash fa-2x mb-2 opacity-50 d-block text-warning"></i>
+                No notifications right now.
+              </li>
+            {% endif %}
+          </ul>
+        </li>
+        {% endif %}
+
         {% if user.is_authenticated %}
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" data-bs-toggle="dropdown">
@@ -124,17 +176,27 @@
               {% endif %}
               <span class="d-none d-md-inline">{{ user.get_full_name|default:user.username }}</span>
             </a>
-            <ul class="dropdown-menu dropdown-menu-end shadow border-0">
-              <li><h6 class="dropdown-header">{{ user.get_role_display }}</h6></li>
-              <li><a class="dropdown-item" href="{% url 'accounts:profile' %}"><i class="fas fa-user-cog me-2"></i>Profile</a></li>
-              <li><a class="dropdown-item" href="{% url 'accounts:change_password' %}"><i class="fas fa-lock me-2"></i>Change Password</a></li>
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item text-danger" href="{% url 'accounts:logout' %}"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+            <ul class="dropdown-menu dropdown-menu-end shadow border-0 p-2" style="min-width:240px;">
+              <li><h6 class="dropdown-header mb-0">{{ user.get_role_display }} (@{{ user.username }})</h6></li>
+              {% if user.phone %}
+              <li class="px-3 py-1 small text-muted d-flex align-items-center justify-content-between">
+                <span><i class="fas fa-phone me-1 text-primary"></i><span id="navUserPhone" data-full-phone="{{ user.phone }}" data-masked-phone="{{ user.phone|slice:':3' }}******">{{ user.phone|slice:':3' }}******</span></span>
+                <button type="button" class="btn btn-link btn-sm p-0 ms-2 text-secondary" onclick="toggleNavPhoneMask(this)" title="Toggle Phone Masking">
+                  <i class="fas fa-eye" id="phoneMaskIcon"></i>
+                </button>
+              </li>
+              {% endif %}
+              <li><hr class="dropdown-divider my-2"></li>
+              <li><a class="dropdown-item py-1" href="{% url 'accounts:profile' %}"><i class="fas fa-user-cog me-2"></i>Profile Settings</a></li>
+              <li><a class="dropdown-item py-1" href="{% url 'accounts:change_password' %}"><i class="fas fa-lock me-2"></i>Change Password</a></li>
+              <li><hr class="dropdown-divider my-2"></li>
+              <li><a class="dropdown-item py-1 text-danger fw-semibold" href="{% url 'accounts:logout' %}"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
             </ul>
           </li>
+
         {% else %}
-          <li class="nav-item"><a class="btn btn-outline-light btn-sm rounded-pill px-3" href="{% url 'accounts:login' %}"><i class="fas fa-sign-in-alt me-1"></i>Login</a></li>
-          <li class="nav-item"><a class="btn btn-sm rounded-pill px-3 fw-semibold" style="background:var(--brand-accent);color:#fff;" href="{% url 'accounts:register' %}"><i class="fas fa-user-plus me-1"></i>Register</a></li>
+          <li class="nav-item"><a class="btn btn-outline-light btn-sm rounded-pill px-3" href="{% url 'accounts:login' %}"><i class="fas fa-sign-in-alt me-1"></i><span data-i18n="Login">Login</span></a></li>
+          <li class="nav-item"><a class="btn btn-sm rounded-pill px-3 fw-semibold" style="background:var(--brand-accent);color:#fff;" href="{% url 'accounts:register' %}"><i class="fas fa-user-plus me-1"></i><span data-i18n="Register">Register</span></a></li>
         {% endif %}
       </ul>
     </div>
@@ -219,6 +281,99 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <!-- Custom JS -->
 <script src="{% static 'js/main.js' %}"></script>
+
+<!-- Multi-Language English / Gujarati Translation Engine Script -->
+<script>
+const gujaratiDict = {
+  "Home": "હોમ",
+  "Search Buses": "બસ શોધો",
+  "Track My Bus": "મારી બસ ટ્રેક કરો",
+  "Reschedule": "રીશેડ્યૂલ",
+  "Cancel Ticket": "ટિકિટ રદ કરો",
+  "Passes & Schemes": "પાસ અને સ્કીમ્સ",
+  "Student Passes": "સ્ટુડન્ટ પાસ",
+  "Passenger Passes": "પેસેન્જર પાસ",
+  "Special Schemes": "વિશેષ સ્કીમો",
+  "My Pass Applications": "મારા પાસ અરજીઓ",
+  "My Bookings": "મારી બુકિંગ્સ",
+  "Login": "લોગિન",
+  "Register": "રજીસ્ટર",
+  "My Trips": "મારી ટ્રિપ્સ",
+  "Verify Ticket": "ટિકિટ ચકાસો",
+  "Admin Dashboard": "એડમિન ડેશબોર્ડ",
+  "Manage Fleet": "બસ ફ્લીટ સંચાલન",
+  "Search": "શોધ",
+  "Select Seats": "સીટો પસંદ કરો",
+  "Fare": "ભાડું",
+  "Total Fare": "કુલ ભાડું",
+  "CO2 Saved": "CO2 બચત"
+};
+
+function applyLanguage(lang) {
+  const isGu = lang === 'gu';
+  const label = document.getElementById('currentLangLabel');
+  if (label) label.textContent = isGu ? '🇮🇳 ગુજરાતી' : '🇬🇧 EN';
+  
+  localStorage.setItem('anandbus_lang', lang);
+
+  // Translate elements marked with data-i18n
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (isGu && gujaratiDict[key]) {
+      el.setAttribute('data-en-text', el.textContent);
+      el.textContent = gujaratiDict[key];
+    } else if (!isGu) {
+      el.textContent = key;
+    }
+  });
+}
+
+function toggleLanguage() {
+  const current = localStorage.getItem('anandbus_lang') || 'en';
+  const next = current === 'en' ? 'gu' : 'en';
+  applyLanguage(next);
+}
+
+function markAllNotificationsRead() {
+  fetch("{% url 'accounts:mark_notifications_read' %}", {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': '{{ csrf_token }}',
+      'Content-Type': 'application/json'
+    }
+  }).then(r => r.json()).then(data => {
+    if (data.success) {
+      const badge = document.getElementById('navNotifBadge');
+      if (badge) badge.style.display = 'none';
+      window.location.reload();
+    }
+  });
+}
+
+function toggleNavPhoneMask(btn) {
+  const phoneSpan = document.getElementById('navUserPhone');
+  const icon = document.getElementById('phoneMaskIcon');
+  if (phoneSpan) {
+    const full = phoneSpan.getAttribute('data-full-phone');
+    const masked = phoneSpan.getAttribute('data-masked-phone');
+    if (phoneSpan.innerText === masked) {
+      phoneSpan.innerText = full;
+      if (icon) icon.className = 'fas fa-eye-slash text-danger';
+    } else {
+      phoneSpan.innerText = masked;
+      if (icon) icon.className = 'fas fa-eye text-secondary';
+    }
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const savedLang = localStorage.getItem('anandbus_lang') || 'en';
+  if (savedLang === 'gu') {
+    applyLanguage('gu');
+  }
+});
+</script>
+
 {% block extra_js %}{% endblock %}
 </body>
 </html>

@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Bus Passes & Special Schemes{% endblock %}
+
+{% block extra_css %}
+<style>
+.scheme-card { border:none; border-radius:20px; box-shadow:0 4px 24px rgba(0,0,0,0.08); overflow:hidden; transition:transform 0.3s, box-shadow 0.3s; }
+.scheme-card:hover { transform:translateY(-6px); box-shadow:0 16px 40px rgba(0,0,0,0.15); }
+.scheme-card-header { padding:24px; position:relative; overflow:hidden; }
+.scheme-card-header .bg-icon { position:absolute; right:-10px; top:-10px; font-size:5rem; opacity:0.15; }
+.scheme-type-badge { display:inline-block; padding:5px 14px; border-radius:20px; font-size:0.72rem; font-weight:700; }
+.discount-pill { background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.35); padding:3px 12px; border-radius:20px; font-size:0.78rem; font-weight:600; }
+.feature-tag { background:#f8f9fa; border:1px solid #dee2e6; border-radius:8px; padding:4px 10px; font-size:0.75rem; color:#555; }
+.btn-apply { border:none; border-radius:12px; padding:10px 24px; font-weight:700; font-size:0.88rem; transition:all 0.3s; }
+.btn-apply:hover { transform:translateY(-2px); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
+    <div>
+      <h3 class="fw-black mb-0" style="color:var(--brand-primary);">Bus Passes & Special Schemes</h3>
+      <p class="text-muted mb-0">Save on daily travel with discounted monthly and student passes</p>
+    </div>
+    <a href="{% url 'bookings:my_passes' %}" class="btn btn-outline-primary rounded-3 ms-auto fw-semibold px-4">
+      <i class="fas fa-id-card me-2"></i>My Passes ({{ my_passes|length }})
+    </a>
+  </div>
+
+  {% if schemes %}
+  <div class="row g-4">
+    {% for scheme in schemes %}
+    <div class="col-md-6 col-lg-4">
+      <div class="scheme-card h-100">
+        <!-- Header with gradient based on type -->
+        <div class="scheme-card-header text-white"
+             style="background:{% if scheme.scheme_type == 'STUDENT' %}linear-gradient(135deg,#9B59B6,#8e44ad)
+                               {% elif scheme.scheme_type == 'MONTHLY' %}linear-gradient(135deg,#1E3A5F,#2980B9)
+                               {% elif scheme.scheme_type == 'SENIOR' %}linear-gradient(135deg,#E67E22,#D35400)
+                               {% elif scheme.scheme_type == 'WOMEN' %}linear-gradient(135deg,#EC4899,#DB2777)
+                               {% elif scheme.scheme_type == 'WORKER' %}linear-gradient(135deg,#27AE60,#1abc9c)
+                               {% else %}linear-gradient(135deg,#2C3E50,#34495E){% endif %};">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <span class="discount-pill">{{ scheme.discount_pct }}% Discount</span>
+            {% if scheme.unlimited_trips %}
+              <span class="discount-pill">∞ Trips</span>
+            {% else %}
+              <span class="discount-pill">{{ scheme.trip_limit }} Trips</span>
+            {% endif %}
+          </div>
+          <div class="bg-icon">
+            {% if scheme.scheme_type == 'STUDENT' %}<i class="fas fa-graduation-cap"></i>
+            {% elif scheme.scheme_type == 'MONTHLY' %}<i class="fas fa-calendar"></i>
+            {% elif scheme.scheme_type == 'SENIOR' %}<i class="fas fa-user-clock"></i>
+            {% elif scheme.scheme_type == 'WOMEN' %}<i class="fas fa-venus"></i>
+            {% elif scheme.scheme_type == 'WORKER' %}<i class="fas fa-hard-hat"></i>
+            {% else %}<i class="fas fa-id-card"></i>{% endif %}
+          </div>
+          <h5 class="fw-black mb-1">{{ scheme.name }}</h5>
+          <div class="small opacity-80">{{ scheme.get_scheme_type_display }}</div>
+        </div>
+
+        <div class="p-4 d-flex flex-column h-100">
+          <p class="text-muted small mb-3">{{ scheme.description|default:"Enjoy discounted travel with this special scheme." }}</p>
+
+          <div class="d-flex flex-wrap gap-2 mb-3">
+            <span class="feature-tag"><i class="fas fa-calendar-alt me-1"></i>{{ scheme.validity_days }} days</span>
+            {% if scheme.applicable_routes.exists %}
+              <span class="feature-tag"><i class="fas fa-route me-1"></i>Selected routes</span>
+            {% else %}
+              <span class="feature-tag"><i class="fas fa-route me-1"></i>All routes</span>
+            {% endif %}
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center mt-auto pt-3 border-top">
+            <div>
+              <div class="text-muted" style="font-size:0.75rem;">Pass Price</div>
+              <div class="fw-black" style="font-size:1.6rem;color:#1E3A5F;">₹{{ scheme.price }}</div>
+            </div>
+            <a href="{% url 'bookings:apply_for_pass' scheme.id %}"
+               class="btn btn-apply"
+               style="background:{% if scheme.scheme_type == 'STUDENT' %}#9B59B6{% elif scheme.scheme_type == 'WOMEN' %}#EC4899{% elif scheme.scheme_type == 'WORKER' %}#27AE60{% else %}#1E3A5F{% endif %};color:#fff;">
+              <i class="fas fa-arrow-right me-2"></i>Apply Now
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="fas fa-id-card fa-4x mb-3 opacity-25"></i>
+      <p>No pass schemes available currently. Check back soon!</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

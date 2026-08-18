@@ -6,22 +6,34 @@
   {% include 'partials/sidebar_admin.html' %}
   <div class="admin-content">
     <div class="d-flex justify-content-between align-items-center mb-4">
-      <h4 class="fw-black mb-0" style="color:var(--brand-primary);">Fleet Management</h4>
-      <a href="{% url 'buses:bus_create' %}" class="btn rounded-3 fw-semibold" style="background:var(--brand-accent);color:#fff;border:none;">
+      <div>
+        <h4 class="fw-black mb-1" style="color:var(--brand-primary);">Fleet Management</h4>
+        <p class="text-muted small mb-0">View, update, disable, or delete buses from the fleet.</p>
+      </div>
+      <a href="{% url 'buses:bus_create' %}" class="btn rounded-3 fw-semibold shadow-sm" style="background:var(--brand-accent);color:#fff;border:none;">
         <i class="fas fa-plus me-2"></i>Add New Bus
       </a>
     </div>
+
     <div class="card border-0 shadow-sm rounded-4">
       <div class="card-body p-0">
         <div class="table-responsive">
           <table class="table table-hover align-middle mb-0">
             <thead style="background:#f8f9fa;">
-              <tr><th class="py-3 ps-4">Bus Number</th><th>Name</th><th>Type</th><th>Seats</th><th>Status</th><th>Amenities</th><th>Actions</th></tr>
+              <tr>
+                <th class="py-3 ps-4">Bus Number</th>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Seats</th>
+                <th>Status</th>
+                <th>Amenities</th>
+                <th class="text-end pe-4">Actions</th>
+              </tr>
             </thead>
             <tbody>
               {% for bus in buses %}
               <tr>
-                <td class="ps-4 fw-semibold">{{ bus.bus_number }}</td>
+                <td class="ps-4 fw-semibold text-primary">{{ bus.bus_number }}</td>
                 <td>{{ bus.bus_name }}</td>
                 <td><span class="badge rounded-2" style="background:#eef6ff;color:#1E3A5F;">{{ bus.get_bus_type_display }}</span></td>
                 <td>{{ bus.total_seats }}</td>
@@ -31,13 +43,27 @@
                   </span>
                 </td>
                 <td>
-                  {% for a in bus.amenities_list %}<span class="badge me-1" style="background:#f0f4ff;color:#1E3A5F;font-size:0.7rem;">{{ a }}</span>{% endfor %}
+                  {% for a in bus.amenities_list %}
+                    <span class="badge me-1" style="background:#f0f4ff;color:#1E3A5F;font-size:0.7rem;">{{ a }}</span>
+                  {% empty %}
+                    <span class="text-muted small">—</span>
+                  {% endfor %}
                 </td>
-                <td>
-                  <a href="{% url 'buses:bus_edit' bus.pk %}" class="btn btn-sm btn-outline-primary rounded-2 me-1"><i class="fas fa-edit"></i></a>
-                  <a href="{% url 'buses:bus_toggle' bus.pk %}" class="btn btn-sm rounded-2 {% if bus.status == 'ACTIVE' %}btn-outline-warning{% else %}btn-outline-success{% endif %}">
-                    {% if bus.status == 'ACTIVE' %}<i class="fas fa-ban"></i>{% else %}<i class="fas fa-check"></i>{% endif %}
-                  </a>
+                <td class="text-end pe-4">
+                  <div class="d-inline-flex gap-1">
+                    <a href="{% url 'buses:bus_edit' bus.pk %}" class="btn btn-sm btn-outline-primary rounded-2" title="Update Bus">
+                      <i class="fas fa-edit me-1"></i>Update
+                    </a>
+                    <a href="{% url 'buses:bus_toggle' bus.pk %}" class="btn btn-sm rounded-2 {% if bus.status == 'ACTIVE' %}btn-outline-warning{% else %}btn-outline-success{% endif %}" title="Toggle Status">
+                      {% if bus.status == 'ACTIVE' %}<i class="fas fa-ban"></i>{% else %}<i class="fas fa-check"></i>{% endif %}
+                    </a>
+                    <form method="POST" action="{% url 'buses:bus_delete' bus.pk %}" class="d-inline" onsubmit="return confirm('Are you sure you want to delete bus {{ bus.bus_number }}?');">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm btn-outline-danger rounded-2" title="Delete Bus">
+                        <i class="fas fa-trash-alt"></i>
+                      </button>
+                    </form>
+                  </div>
                 </td>
               </tr>
               {% empty %}

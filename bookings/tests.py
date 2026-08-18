@@ -71,7 +71,7 @@ class BookingsTestCase(TestCase):
         }
         response = self.client.post(reverse('bookings:passenger_info'), post_data)
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Please enter a valid age (1-99)')
+        self.assertContains(response, 'Age must be 1')
 
     def test_passenger_info_valid_submission(self):
         """Test valid passenger info submission creates booking and passenger details."""
