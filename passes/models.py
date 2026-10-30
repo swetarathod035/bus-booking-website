@@ -42,6 +42,7 @@ class BusPass(models.Model):
     college_name = models.CharField(max_length=200, blank=True, default='')
     student_id_number = models.CharField(max_length=100, blank=True, default='')
     id_proof_number = models.CharField(max_length=100, blank=True, default='')
+    photo = models.ImageField(upload_to='pass_photos/', blank=True, null=True)
     id_proof_document = models.FileField(upload_to='pass_documents/', blank=True, null=True)
 
     # Pricing & Status
@@ -59,6 +60,20 @@ class BusPass(models.Model):
         verbose_name = 'Bus Pass'
         verbose_name_plural = 'Bus Passes'
         ordering = ['-applied_at']
+
+    @property
+    def secure_qr_token(self):
+        import hmac, hashlib, base64, json
+        payload = {
+            "pass": self.pass_number or f"AB-PASS-{self.pk}",
+            "valid_until": str(self.valid_to or ''),
+            "passenger": self.applicant_name,
+            "iss": "ANANDBUS",
+            "type": self.applicant_type,
+        }
+        payload_b64 = base64.urlsafe_b64encode(json.dumps(payload).encode()).decode()
+        sig = hmac.new(settings.SECRET_KEY.encode(), payload_b64.encode(), hashlib.sha256).hexdigest()[:16]
+        return f"ABTOKEN.{payload_b64}.{sig}"
 
     def save(self, *args, **kwargs):
         if not self.pass_number:

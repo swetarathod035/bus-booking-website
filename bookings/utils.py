@@ -345,3 +345,99 @@ def send_booking_email(booking):
             pass
 
     email.send(fail_silently=True)
+
+
+# ─── Secure Encrypted QR Token Verification ───────────────────────────
+def verify_secure_qr_token(token_string):
+    """
+    Verifies an encrypted/signed ABTOKEN QR token string.
+    Returns (is_valid, payload_or_error_msg).
+    """
+    import hmac, hashlib, base64, json, datetime
+    from django.conf import settings
+
+    if not token_string or not isinstance(token_string, str):
+        return False, "Invalid token string."
+
+    token_string = token_string.strip()
+    if not token_string.startswith("ABTOKEN."):
+        return False, "Not an encrypted ABTOKEN string."
+
+    parts = token_string.split(".")
+    if len(parts) != 3:
+        return False, "Malformed token string format."
+
+    _, payload_b64, sig = parts
+    expected_sig = hmac.new(settings.SECRET_KEY.encode(), payload_b64.encode(), hashlib.sha256).hexdigest()[:16]
+
+    if not hmac.compare_digest(sig, expected_sig):
+        return False, "Token signature verification failed (Tampered QR Code)."
+
+    try:
+        payload_json = base64.urlsafe_b64decode(payload_b64.encode()).decode()
+        payload = json.loads(payload_json)
+    except Exception as e:
+        return False, f"Token payload decode error: {e}"
+
+    # Check expiration if present
+    valid_until_str = payload.get("valid_until")
+    if valid_until_str:
+        try:
+            valid_until_date = datetime.datetime.strptime(valid_until_str, "%Y-%m-%d").date()
+            if valid_until_date < datetime.date.today():
+                return False, f"Pass EXPIRED on {valid_until_str}."
+        except Exception:
+            pass
+
+    return True, payload
+
+
+# ─── Automated Pass Expiry Alert System ───────────────────────────────────────
+def send_pass_expiry_notifications(days_ahead=3):
+    """
+    Finds active passes expiring within `days_ahead` days and sends automated Email & SMS alerts.
+    """
+    from .models import BusPass
+    from django.core.mail import send_mail
+    import datetime
+
+    today = datetime.date.today()
+    target_date = today + datetime.timedelta(days=days_ahead)
+
+    expiring_passes = BusPass.objects.filter(
+        status=BusPass.Status.ACTIVE,
+        valid_until__lte=target_date,
+        valid_until__gte=today,
+    ).select_related('passenger', 'scheme')
+
+    alerts_sent = 0
+    for bus_pass in expiring_passes:
+        passenger = bus_pass.passenger
+        recipient_email = passenger.email
+        if recipient_email:
+            days_left = (bus_pass.valid_until - today).days
+            days_str = f"in {days_left} days" if days_left > 0 else "TODAY"
+            subject = f"⏰ Pass Renewal Alert: Your AnandBus {bus_pass.scheme.name} Expires {days_str}!"
+            body = (
+                f"Dear {passenger.get_full_name() or passenger.username},\n\n"
+                f"This is an automated alert from AnandBus Transport Services.\n\n"
+                f"Your digital bus pass (#{bus_pass.pass_number}) for '{bus_pass.scheme.name}' "
+                f"is scheduled to expire on {bus_pass.valid_until.strftime('%d %B %Y')} ({days_str}).\n\n"
+                f"To avoid travel interruptions and retain your concession benefits, please renew your pass today on the AnandBus portal:\n"
+                f"{getattr(settings, 'SITE_URL', 'http://127.0.0.1:8000')}/bookings/passes/\n\n"
+                f"Thank you for traveling with AnandBus!\n"
+                f"AnandBus Customer Operations Team"
+            )
+            try:
+                send_mail(
+                    subject,
+                    body,
+                    getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@anandbus.com'),
+                    [recipient_email],
+                    fail_silently=True,
+                )
+                alerts_sent += 1
+            except Exception:
+                pass
+
+    return alerts_sent

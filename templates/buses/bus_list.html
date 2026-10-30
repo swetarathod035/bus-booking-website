@@ -52,7 +52,7 @@
                 <td class="text-end pe-4">
                   <div class="d-inline-flex gap-1">
                     <a href="{% url 'buses:bus_edit' bus.pk %}" class="btn btn-sm btn-outline-primary rounded-2" title="Update Bus">
-                      <i class="fas fa-edit me-1"></i>Update
+                      <i class="fas fa-edit"></i>
                     </a>
                     <a href="{% url 'buses:bus_toggle' bus.pk %}" class="btn btn-sm rounded-2 {% if bus.status == 'ACTIVE' %}btn-outline-warning{% else %}btn-outline-success{% endif %}" title="Toggle Status">
                       {% if bus.status == 'ACTIVE' %}<i class="fas fa-ban"></i>{% else %}<i class="fas fa-check"></i>{% endif %}

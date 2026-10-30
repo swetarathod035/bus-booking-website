@@ -124,8 +124,8 @@
             <h5 class="fw-bold text-dark mb-0">{{ bpass.pass_number }}</h5>
             <small class="text-muted">Applied on {{ bpass.applied_at|date:"d M Y" }}</small>
           </div>
-          {% if bpass.status == 'APPROVED' %}
-            <span class="badge bg-success px-3 py-2 fs-6"><i class="fas fa-check-circle me-1"></i>APPROVED</span>
+          {% if bpass.status == 'APPROVED' or bpass.status == 'PASS_GENERATED' or bpass.status == 'ACTIVE' %}
+            <span class="badge bg-success px-3 py-2 fs-6"><i class="fas fa-check-circle me-1"></i>PASS GENERATED</span>
           {% elif bpass.status == 'REJECTED' %}
             <span class="badge bg-danger px-3 py-2 fs-6"><i class="fas fa-times-circle me-1"></i>REJECTED</span>
           {% else %}
@@ -145,9 +145,9 @@
             </div>
 
             <!-- Step 2: Document Verification -->
-            <div class="pass-step {% if bpass.status == 'APPROVED' %}completed{% elif bpass.status == 'PENDING' %}active{% elif bpass.status == 'REJECTED' %}rejected{% endif %}">
+            <div class="pass-step {% if bpass.status == 'APPROVED' or bpass.status == 'PASS_GENERATED' or bpass.status == 'ACTIVE' %}completed{% elif bpass.status == 'PENDING' %}active{% elif bpass.status == 'REJECTED' %}rejected{% endif %}">
               <div class="step-icon">
-                {% if bpass.status == 'APPROVED' %}<i class="fas fa-check"></i>
+                {% if bpass.status == 'APPROVED' or bpass.status == 'PASS_GENERATED' or bpass.status == 'ACTIVE' %}<i class="fas fa-check"></i>
                 {% elif bpass.status == 'REJECTED' %}<i class="fas fa-xmark"></i>
                 {% else %}<i class="fas fa-spinner fa-spin"></i>{% endif %}
               </div>
@@ -155,9 +155,9 @@
             </div>
 
             <!-- Step 3: Approval -->
-            <div class="pass-step {% if bpass.status == 'APPROVED' %}completed{% elif bpass.status == 'REJECTED' %}rejected{% endif %}">
+            <div class="pass-step {% if bpass.status == 'APPROVED' or bpass.status == 'PASS_GENERATED' or bpass.status == 'ACTIVE' %}completed{% elif bpass.status == 'REJECTED' %}rejected{% endif %}">
               <div class="step-icon">
-                {% if bpass.status == 'APPROVED' %}<i class="fas fa-stamp"></i>
+                {% if bpass.status == 'APPROVED' or bpass.status == 'PASS_GENERATED' or bpass.status == 'ACTIVE' %}<i class="fas fa-check"></i>
                 {% elif bpass.status == 'REJECTED' %}<i class="fas fa-ban"></i>
                 {% else %}<i class="fas fa-ellipsis"></i>{% endif %}
               </div>
@@ -165,9 +165,9 @@
             </div>
 
             <!-- Step 4: Pass Generated -->
-            <div class="pass-step {% if bpass.status == 'APPROVED' %}completed{% endif %}">
+            <div class="pass-step {% if bpass.status == 'APPROVED' or bpass.status == 'PASS_GENERATED' or bpass.status == 'ACTIVE' %}completed{% endif %}">
               <div class="step-icon">
-                {% if bpass.status == 'APPROVED' %}<i class="fas fa-qrcode"></i>
+                {% if bpass.status == 'APPROVED' or bpass.status == 'PASS_GENERATED' or bpass.status == 'ACTIVE' %}<i class="fas fa-check"></i>
                 {% else %}<i class="fas fa-lock"></i>{% endif %}
               </div>
               <div class="step-label">Pass Generated</div>
@@ -176,30 +176,73 @@
         </div>
 
         <!-- Digital Pass Card Details -->
-        <div class="digital-pass-card">
-          <div class="row g-2 small text-light opacity-90">
-            <div class="col-6">
-              <span class="d-block text-uppercase" style="font-size:0.68rem;opacity:0.7;">Applicant Name</span>
-              <strong class="text-white">{{ bpass.applicant_name }}</strong>
+        <div id="passCard_{{ bpass.id }}" class="digital-pass-card p-4 rounded-4" style="background: linear-gradient(135deg, #1E3A5F 0%, #0F172A 100%); color: #ffffff;">
+          
+          <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom border-secondary">
+            <div class="d-flex align-items-center gap-3">
+              {% if bpass.photo %}
+                <img src="{{ bpass.photo.url }}" alt="Profile Photo" class="rounded-circle border border-2 border-warning shadow-sm" style="width:48px;height:48px;object-fit:cover;">
+              {% elif bpass.user and bpass.user.avatar %}
+                <img src="{{ bpass.user.avatar.url }}" alt="Profile Photo" class="rounded-circle border border-2 border-warning shadow-sm" style="width:48px;height:48px;object-fit:cover;">
+              {% else %}
+                <div class="rounded-circle bg-warning text-dark fw-bold d-flex align-items-center justify-content-center shadow-sm" style="width:48px;height:48px;font-size:1.2rem;">
+                  <i class="fas fa-user-graduate"></i>
+                </div>
+              {% endif %}
+              <div>
+                <h6 class="fw-black mb-0 text-white" style="letter-spacing:0.5px;">ANANDBUS DIGITAL PASS</h6>
+                <small class="text-warning fw-semibold" style="font-size:0.68rem;text-transform:uppercase;">
+                  {% if bpass.applicant_type == 'STUDENT' %}🎓 STUDENT CONCESSION PASS{% else %}🚌 COMMUTER EXPRESS PASS{% endif %}
+                </small>
+              </div>
             </div>
-            <div class="col-6">
-              <span class="d-block text-uppercase" style="font-size:0.68rem;opacity:0.7;">Route</span>
-              <strong class="text-white">{{ bpass.route.route_name|default:"All City Routes" }}</strong>
-            </div>
-            <div class="col-6 mt-2">
-              <span class="d-block text-uppercase" style="font-size:0.68rem;opacity:0.7;">Valid From</span>
-              <strong class="text-white">{{ bpass.valid_from|default:"Pending Approval" }}</strong>
-            </div>
-            <div class="col-6 mt-2">
-              <span class="d-block text-uppercase" style="font-size:0.68rem;opacity:0.7;">Valid Until</span>
-              <strong class="text-white">{{ bpass.valid_to|default:"Pending Approval" }}</strong>
+            <div class="text-end">
+              <span class="badge bg-success px-2 py-1" style="font-size:0.7rem;">PASS GENERATED</span>
+              <small class="d-block text-light opacity-75 mt-1" style="font-size:0.68rem;">ID: {{ bpass.pass_number }}</small>
             </div>
           </div>
 
-          <div class="d-flex justify-content-between align-items-center pt-3 mt-3 border-top border-secondary">
+          <div class="row g-3 align-items-center mb-2">
+            <div class="col-4 text-center">
+              <div class="p-2 bg-white rounded-3 d-inline-block shadow-sm">
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={{ bpass.secure_qr_token|urlencode }}"
+                     alt="Encrypted Pass QR Code" style="width:95px;height:95px;display:block;"
+                     onerror="this.onerror=null; this.src='https://chart.googleapis.com/chart?cht=qr&chs=150x150&chl={{ bpass.secure_qr_token|urlencode }}';">
+              </div>
+              <small class="d-block text-center text-warning opacity-90 mt-1" style="font-size:0.62rem;font-family:monospace;">ENCRYPTED QR TOKEN</small>
+            </div>
+            
+            <div class="col-8">
+              <div class="row g-2 small text-light opacity-90">
+                <div class="col-12">
+                  <span class="d-block text-uppercase text-muted" style="font-size:0.65rem;color:rgba(255,255,255,0.7) !important;">Applicant Name</span>
+                  <strong class="text-white fs-6">{{ bpass.applicant_name }}</strong>
+                </div>
+                <div class="col-12">
+                  <span class="d-block text-uppercase text-muted" style="font-size:0.65rem;color:rgba(255,255,255,0.7) !important;">Route</span>
+                  <strong class="text-warning small">{{ bpass.route.route_name|default:"All Anand City Routes" }}</strong>
+                </div>
+                <div class="col-6">
+                  <span class="d-block text-uppercase text-muted" style="font-size:0.65rem;color:rgba(255,255,255,0.7) !important;">Valid From</span>
+                  <strong class="text-white small">{{ bpass.valid_from|default:"Immediate" }}</strong>
+                </div>
+                <div class="col-6">
+                  <span class="d-block text-uppercase text-muted" style="font-size:0.65rem;color:rgba(255,255,255,0.7) !important;">Valid Until</span>
+                  <strong class="text-white small">{{ bpass.valid_to|default:"30 Days" }}</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center pt-3 mt-3 border-top border-secondary flex-wrap gap-2">
             <span class="small text-light">Pass Fare: <strong class="text-warning fs-5">₹{{ bpass.total_fare }}</strong></span>
-            {% if bpass.status == 'APPROVED' %}
-              <span class="badge bg-success"><i class="fas fa-qrcode me-1"></i>Active QR Pass</span>
+            {% if bpass.status == 'APPROVED' or bpass.status == 'PASS_GENERATED' or bpass.status == 'ACTIVE' %}
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-success py-2 px-3"><i class="fas fa-qrcode me-1"></i>Active QR Pass</span>
+                <button type="button" onclick="downloadPassPDF('passCard_{{ bpass.id }}', '{{ bpass.pass_number }}')" class="btn btn-sm btn-outline-light rounded-pill px-3 shadow-sm no-pdf">
+                  <i class="fas fa-file-pdf me-1 text-danger"></i>Download Pass (PDF)
+                </button>
+              </div>
             {% else %}
               <span class="badge bg-secondary">In Verification</span>
             {% endif %}
@@ -253,4 +296,39 @@
     {% endfor %}
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+function downloadPassPDF(elementId, passNumber) {
+  const original = document.getElementById(elementId);
+  if (!original) return;
+
+  // Clone element to avoid modifying live page
+  const clone = original.cloneNode(true);
+
+  // Remove interactive buttons or non-printable elements
+  clone.querySelectorAll('.no-pdf').forEach(el => el.remove());
+
+  // Create clean printable wrapper element
+  const container = document.createElement('div');
+  container.style.padding = '25px';
+  container.style.background = '#ffffff';
+  container.style.fontFamily = "'Poppins', sans-serif";
+  container.style.width = '640px';
+  container.style.margin = '0 auto';
+  container.appendChild(clone);
+
+  const opt = {
+    margin:       0.3,
+    filename:     `AnandBus_Digital_Pass_${passNumber}.pdf`,
+    image:        { type: 'jpeg', quality: 0.98 },
+    html2canvas:  { scale: 2, useCORS: true, logging: false },
+    jsPDF:        { unit: 'in', format: 'a5', orientation: 'landscape' }
+  };
+
+  html2pdf().set(opt).from(container).save();
+}
+</script>
 {% endblock %}

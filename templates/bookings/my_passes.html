@@ -19,19 +19,46 @@
     {% for bus_pass in passes %}
     <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden">
       <div class="p-4 text-white"
-           style="background:{% if bus_pass.status == 'ACTIVE' %}linear-gradient(135deg,#1E3A5F,#2980B9){% elif bus_pass.status == 'PENDING' %}linear-gradient(135deg,#F39C12,#e67e22){% elif bus_pass.status == 'EXPIRED' %}linear-gradient(135deg,#7f8c8d,#95a5a6){% else %}linear-gradient(135deg,#e74c3c,#c0392b){% endif %};">
-        <div class="d-flex justify-content-between align-items-start">
-          <div>
-            <div class="fw-black fs-5">{{ bus_pass.scheme.name }}</div>
-            <div class="opacity-75 small">{{ bus_pass.pass_number }}</div>
+           style="background:{% if bus_pass.status == 'ACTIVE' or bus_pass.status == 'APPROVED' or bus_pass.status == 'PASS_GENERATED' %}linear-gradient(135deg,#1E3A5F,#2980B9){% elif bus_pass.status == 'PENDING' %}linear-gradient(135deg,#F39C12,#e67e22){% elif bus_pass.status == 'EXPIRED' %}linear-gradient(135deg,#7f8c8d,#95a5a6){% else %}linear-gradient(135deg,#e74c3c,#c0392b){% endif %};">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-3">
+            {% if bus_pass.photo %}
+              <img src="{{ bus_pass.photo.url }}" alt="Passenger Photo" class="rounded-circle border border-2 border-warning shadow-sm" style="width:52px;height:52px;object-fit:cover;">
+            {% elif bus_pass.passenger.avatar %}
+              <img src="{{ bus_pass.passenger.avatar.url }}" alt="Passenger Photo" class="rounded-circle border border-2 border-warning shadow-sm" style="width:52px;height:52px;object-fit:cover;">
+            {% else %}
+              <div class="rounded-circle bg-white text-dark fw-bold d-flex align-items-center justify-content-center shadow-sm" style="width:52px;height:52px;font-size:1.3rem;">
+                <i class="fas fa-user-graduate" style="color:var(--brand-primary);"></i>
+              </div>
+            {% endif %}
+            <div>
+              <div class="fw-black fs-5">{{ bus_pass.scheme.name }}</div>
+              <div class="opacity-75 small">{{ bus_pass.pass_number }} · {{ bus_pass.passenger.get_full_name|default:bus_pass.passenger.username }}</div>
+            </div>
           </div>
-          <span class="badge py-2 px-3 rounded-3"
-                style="background:rgba(255,255,255,0.2);font-size:0.82rem;">
-            {{ bus_pass.get_status_display }}
-          </span>
+          {% if bus_pass.status == 'ACTIVE' or bus_pass.status == 'APPROVED' or bus_pass.status == 'PASS_GENERATED' %}
+            <span class="badge py-2 px-3 rounded-3 bg-success text-white fw-bold" style="font-size:0.82rem;">
+              <i class="fas fa-check-circle me-1"></i>PASS GENERATED
+            </span>
+          {% else %}
+            <span class="badge py-2 px-3 rounded-3" style="background:rgba(255,255,255,0.2);font-size:0.82rem;">
+              {{ bus_pass.get_status_display }}
+            </span>
+          {% endif %}
+        </div>
+
+        <!-- Progress Tracker -->
+        <div class="mt-3 p-2 rounded-3 bg-white text-dark shadow-sm">
+          <small class="fw-bold text-uppercase text-muted d-block mb-1" style="font-size:0.65rem;">Application Progress Tracking</small>
+          <div class="d-flex justify-content-between align-items-center text-center py-1" style="font-size:0.75rem;">
+            <div class="flex-fill"><span class="badge bg-success rounded-circle p-1 me-1"><i class="fas fa-check"></i></span>Submitted</div>
+            <div class="flex-fill"><span class="badge {% if bus_pass.status == 'ACTIVE' or bus_pass.status == 'APPROVED' %}bg-success{% else %}bg-secondary{% endif %} rounded-circle p-1 me-1"><i class="fas fa-check"></i></span>Doc Verify</div>
+            <div class="flex-fill"><span class="badge {% if bus_pass.status == 'ACTIVE' or bus_pass.status == 'APPROVED' %}bg-success{% else %}bg-secondary{% endif %} rounded-circle p-1 me-1"><i class="fas fa-check"></i></span>Approved</div>
+            <div class="flex-fill"><span class="badge {% if bus_pass.status == 'ACTIVE' or bus_pass.status == 'APPROVED' %}bg-success{% else %}bg-secondary{% endif %} rounded-circle p-1 me-1"><i class="fas fa-check"></i></span>Pass Generated</div>
+          </div>
         </div>
       </div>
-      <div class="p-4">
+      <div class="p-4" id="bPassCard_{{ bus_pass.id }}">
         <div class="row g-3">
           <div class="col-6 col-md-3">
             <div class="text-muted small">Type</div>
@@ -50,6 +77,27 @@
             <div class="fw-black" style="color:var(--brand-primary);">{{ bus_pass.trips_remaining }}</div>
           </div>
         </div>
+
+        {% if bus_pass.status == 'ACTIVE' or bus_pass.status == 'APPROVED' or bus_pass.status == 'PASS_GENERATED' %}
+          <div class="mt-3 pt-3 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge bg-success py-2 px-3"><i class="fas fa-qrcode me-1"></i>Active QR Pass</span>
+            </div>
+            <button type="button" onclick="downloadPassPDF('bPassCard_{{ bus_pass.id }}', '{{ bus_pass.pass_number }}')" class="btn btn-sm btn-outline-primary rounded-pill px-3 shadow-sm no-pdf">
+              <i class="fas fa-file-pdf me-1 text-danger"></i>Download Pass (PDF)
+            </button>
+          </div>
+          <div class="mt-3 text-center p-3 bg-light rounded-3 border">
+            <div class="p-2 bg-white d-inline-block rounded-3 shadow-sm border mb-2">
+              <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={{ bus_pass.secure_qr_token|urlencode }}"
+                   alt="Encrypted Pass QR Code" style="width:120px;height:120px;display:block;"
+                   onerror="this.onerror=null; this.src='https://chart.googleapis.com/chart?cht=qr&chs=150x150&chl={{ bus_pass.secure_qr_token|urlencode }}';">
+            </div>
+            <div class="small fw-bold text-success"><i class="fas fa-shield-halved me-1"></i>Encrypted Dynamic Token Active</div>
+            <div class="text-muted" style="font-size:0.68rem;font-family:monospace;">SCAN TO VERIFY PASS</div>
+          </div>
+        {% endif %}
+
         {% if bus_pass.status == 'REJECTED' and bus_pass.rejection_reason %}
           <div class="mt-3 p-2 rounded-3 small text-danger" style="background:#fff5f5;border:1px solid #ffd6d6;">
             <i class="fas fa-exclamation-triangle me-1"></i>{{ bus_pass.rejection_reason }}
@@ -74,4 +122,35 @@
     </div>
   {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+function downloadPassPDF(elementId, passNumber) {
+  const original = document.getElementById(elementId);
+  if (!original) return;
+
+  const clone = original.cloneNode(true);
+  clone.querySelectorAll('.no-pdf').forEach(el => el.remove());
+
+  const container = document.createElement('div');
+  container.style.padding = '25px';
+  container.style.background = '#ffffff';
+  container.style.fontFamily = "'Poppins', sans-serif";
+  container.style.width = '640px';
+  container.style.margin = '0 auto';
+  container.appendChild(clone);
+
+  const opt = {
+    margin:       0.3,
+    filename:     `AnandBus_Digital_Pass_${passNumber}.pdf`,
+    image:        { type: 'jpeg', quality: 0.98 },
+    html2canvas:  { scale: 2, useCORS: true, logging: false },
+    jsPDF:        { unit: 'in', format: 'a5', orientation: 'landscape' }
+  };
+
+  html2pdf().set(opt).from(container).save();
+}
+</script>
 {% endblock %}

@@ -42,7 +42,7 @@
               <td class="text-end pe-4">
                 <div class="d-inline-flex gap-1">
                   <a href="{% url 'buses:driver_edit' d.pk %}" class="btn btn-sm btn-outline-primary rounded-2" title="Update Driver">
-                    <i class="fas fa-edit me-1"></i>Update
+                    <i class="fas fa-edit"></i>
                   </a>
                   <form method="POST" action="{% url 'buses:driver_delete' d.pk %}" class="d-inline" onsubmit="return confirm('Are you sure you want to delete driver {{ d.name }}?');">
                     {% csrf_token %}

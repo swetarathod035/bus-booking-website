@@ -205,14 +205,24 @@ def admin_scheme_edit(request, scheme_id):
 @require_GET
 @conductor_required
 def conductor_scan_pass(request):
-    """AJAX: Conductor scans a bus pass number to verify & log usage."""
-    pass_number = request.GET.get('pass', '').strip().upper()
+    """AJAX: Conductor scans a bus pass number or encrypted QR token to verify & log usage."""
+    raw_input   = request.GET.get('pass', '').strip()
     schedule_id = request.GET.get('schedule_id', '')
     boarding    = request.GET.get('boarding', '')
     alighting   = request.GET.get('alighting', '')
 
-    if not pass_number:
-        return JsonResponse({'valid': False, 'message': 'Pass number required'})
+    if not raw_input:
+        return JsonResponse({'valid': False, 'message': 'Pass number or QR code token required'})
+
+    # Support Encrypted QR Token verification
+    if raw_input.startswith('ABTOKEN.'):
+        from .utils import verify_secure_qr_token
+        is_token_valid, result = verify_secure_qr_token(raw_input)
+        if not is_token_valid:
+            return JsonResponse({'valid': False, 'message': f'QR Verification Failed: {result}'})
+        pass_number = result.get('pass', '').strip().upper()
+    else:
+        pass_number = raw_input.upper()
 
     bus_pass = BusPass.objects.filter(pass_number=pass_number).select_related(
         'passenger', 'scheme'
@@ -263,8 +273,10 @@ def conductor_scan_pass(request):
 
     return JsonResponse({
         'valid': True,
+        'message': 'PASS VALID',
+        'pass_status_display': 'PASS VALID',
         'pass_number': bus_pass.pass_number,
-        'passenger': bus_pass.passenger.get_full_name(),
+        'passenger': bus_pass.passenger.get_full_name() or bus_pass.passenger.username,
         'passenger_phone': bus_pass.passenger.phone or '—',
         'pass_type': bus_pass.scheme.get_scheme_type_display(),
         'scheme_name': bus_pass.scheme.name,
@@ -273,6 +285,14 @@ def conductor_scan_pass(request):
         'trips_used': bus_pass.trips_used,
         'trips_remaining': str(bus_pass.trips_remaining),
         'discount_pct': float(bus_pass.scheme.discount_pct),
-        'photo_url': bus_pass.photo.url if bus_pass.photo else '',
-        'message': f'Pass verified ✓ — {bus_pass.scheme.name}',
     })
+
+
+# ─── Admin: Trigger Expiry Alerts ─────────────────────────────────────────────
+@superadmin_required
+def trigger_pass_expiry_alerts(request):
+    """Admin triggers automated email alerts for passes expiring within 3 days."""
+    from .utils import send_pass_expiry_notifications
+    count = send_pass_expiry_notifications(days_ahead=3)
+    messages.success(request, f'Automated pass expiry alerts triggered! {count} email notifications sent.')
+    return redirect('bookings:admin_pass_list')

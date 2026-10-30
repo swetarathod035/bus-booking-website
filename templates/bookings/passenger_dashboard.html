@@ -150,17 +150,52 @@
   </div>
 
   <div class="row g-4 mb-4">
-    <!-- ─── Linear Booking Graph ────────────────────────────────────────── -->
+    <!-- ─── Premium Interactive Booking Analytics Graph ──────────────────────── -->
     <div class="col-lg-8">
-      <div class="chart-card">
-        <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="chart-card position-relative overflow-hidden p-4 rounded-4 shadow-sm" style="background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%); border: 1px solid rgba(226,232,240,0.9);">
+        <!-- Top Glowing Accent Line -->
+        <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg, #3B82F6 0%, #8B5CF6 33%, #EC4899 66%, #FF6B35 100%);"></div>
+
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2 pt-1">
           <div>
-            <h6 class="fw-bold mb-0" style="color:var(--brand-primary);">My Bookings Activity</h6>
-            <small class="text-muted">Last 14 days</small>
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <div class="rounded-3 d-flex align-items-center justify-content-center shadow-2xs" style="width:40px;height:40px;background:linear-gradient(135deg, #1E3A5F 0%, #2980B9 100%);color:#fff;">
+                <i class="fas fa-chart-line fs-5"></i>
+              </div>
+              <div>
+                <div class="d-flex align-items-center gap-2">
+                  <h6 class="fw-black mb-0 text-dark" style="letter-spacing:-0.3px;font-size:1.05rem;">My Booking Trends</h6>
+                  <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1" style="font-size:0.65rem;">
+                    <i class="fas fa-circle text-success me-1 fa-beat" style="font-size:0.45rem;"></i>LIVE DATA
+                  </span>
+                </div>
+                <small class="text-muted">14-Day Activity & Commute Analytics</small>
+              </div>
+            </div>
           </div>
-          <span class="badge" style="background:#eef6ff;color:#1E3A5F;font-size:0.75rem;">Linear View</span>
+
+          <!-- Quick Analytics Badges & Mode Switcher -->
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span class="badge rounded-pill px-3 py-2 fw-semibold text-dark border bg-white shadow-2xs" style="font-size:0.75rem;">
+              <i class="fas fa-fire text-danger me-1"></i>Peak: <strong id="peakDayBadge" class="text-primary">—</strong>
+            </span>
+            <span class="badge rounded-pill px-3 py-2 fw-semibold text-dark border bg-white shadow-2xs d-none d-md-inline-block" style="font-size:0.75rem;">
+              <i class="fas fa-ticket text-success me-1"></i>Total: <strong id="totalBookingsBadge" class="text-dark">—</strong>
+            </span>
+            <div class="btn-group btn-group-sm rounded-pill p-1 border bg-white shadow-2xs" role="group">
+              <button type="button" class="btn btn-sm rounded-pill px-3 fw-bold active btn-primary" id="btnChartLine" onclick="setPassengerChartType('line')">
+                <i class="fas fa-chart-line me-1"></i>Line Trend
+              </button>
+              <button type="button" class="btn btn-sm rounded-pill px-3 fw-semibold text-muted" id="btnChartBar" onclick="setPassengerChartType('bar')">
+                <i class="fas fa-chart-column me-1"></i>Bar View
+              </button>
+            </div>
+          </div>
         </div>
-        <canvas id="bookingLineChart" height="100"></canvas>
+
+        <div class="position-relative mt-2 p-2 rounded-3" style="background:rgba(248,250,252,0.6); border:1px solid rgba(241,245,249,0.8);">
+          <canvas id="bookingLineChart" height="110"></canvas>
+        </div>
       </div>
     </div>
 
@@ -263,25 +298,22 @@
               {% if booking.status == 'CONFIRMED' %}<i class="fas fa-check-circle me-1"></i>{% endif %}
               {{ booking.status }}
             </span>
-            <div class="d-flex flex-wrap gap-1">
-              <a href="{% url 'bookings:booking_detail' booking.booking_id %}" class="btn btn-view">
-                <i class="fas fa-eye me-1"></i>View
+            <div class="d-flex flex-wrap gap-2">
+              <a href="{% url 'bookings:booking_detail' booking.booking_id %}" class="btn btn-view btn-sm rounded-circle p-2 d-inline-flex align-items-center justify-content-center" style="width:36px;height:36px;" data-bs-toggle="tooltip" title="View Booking Details">
+                <i class="fas fa-eye"></i>
               </a>
               {% if booking.status == 'CONFIRMED' %}
-                <a href="{% url 'bookings:download_ticket' booking.booking_id %}" class="btn btn-pdf">
-                  <i class="fas fa-download me-1"></i>PDF
+                <a href="{% url 'bookings:download_ticket' booking.booking_id %}" class="btn btn-pdf btn-sm rounded-circle p-2 d-inline-flex align-items-center justify-content-center" style="width:36px;height:36px;" data-bs-toggle="tooltip" title="Download PDF Ticket">
+                  <i class="fas fa-download"></i>
                 </a>
-                <a href="{% url 'tracking:live' booking.schedule.id %}" class="btn btn-track">
-                  <i class="fas fa-map-marker-alt me-1"></i>Track
+                <a href="{% url 'tracking:live' booking.schedule.id %}" class="btn btn-track btn-sm rounded-circle p-2 d-inline-flex align-items-center justify-content-center" style="width:36px;height:36px;" data-bs-toggle="tooltip" title="Track Live Bus Location">
+                  <i class="fas fa-map-marker-alt"></i>
                 </a>
               {% endif %}
               {% if booking.status in 'CONFIRMED,PENDING' %}
-                <form method="POST" action="{% url 'bookings:cancel_booking' booking.booking_id %}"
-                      onsubmit="return confirm('Cancel this booking?')">
-                  {% csrf_token %}
-                  <input type="hidden" name="reason" value="Cancelled by passenger">
-                  <button type="submit" class="btn btn-cancel"><i class="fas fa-times me-1"></i>Cancel</button>
-                </form>
+                <a href="{% url 'bookings:cancel_ticket_page' %}?pnr={{ booking.short_id }}" class="btn btn-cancel btn-sm rounded-circle p-2 d-inline-flex align-items-center justify-content-center" style="width:36px;height:36px;" data-bs-toggle="tooltip" title="Cancel Booking">
+                  <i class="fas fa-times"></i>
+                </a>
               {% endif %}
             </div>
           </div>
@@ -297,138 +329,6 @@
          style="background:linear-gradient(135deg,#1E3A5F,#2980B9);color:#fff;border:none;">
         <i class="fas fa-search me-2"></i>Search Buses
       </a>
-    </div>
-  {% endif %}
-
-  <!-- ─── Past Bookings ─────────────────────────────────────────────────── -->
-  {% if past_bookings %}
-    <h5 class="fw-bold mb-3 mt-4" style="color:var(--brand-primary);">
-      <i class="fas fa-history me-2"></i>Past Trips & Ratings
-    </h5>
-    <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
-      <table class="table table-hover align-middle mb-0">
-        <thead style="background:#f8f9fa;font-size:0.8rem;">
-          <tr>
-            <th class="py-3 ps-4">Booking ID</th>
-            <th>Route</th>
-            <th>Date</th>
-            <th>Amount</th>
-            <th>Status</th>
-            <th>Rating & Feedback</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for booking in past_bookings %}
-          <tr>
-            <td class="ps-4"><code class="small fw-semibold">{{ booking.short_id }}</code></td>
-            <td class="small">{{ booking.schedule.route.route_name|truncatechars:28 }}</td>
-            <td class="small">{{ booking.schedule.travel_date|date:"d M Y" }}</td>
-            <td class="fw-semibold small">₹{{ booking.total_amount }}</td>
-            <td>
-              <span class="badge rounded-pill
-                {% if booking.status == 'COMPLETED' %}bg-success
-                {% elif booking.status == 'CANCELLED' %}bg-danger
-                {% elif booking.status == 'REFUNDED' %}bg-info
-                {% else %}bg-secondary{% endif %}">
-                {{ booking.status }}
-              </span>
-            </td>
-            <td>
-              {% if booking.ride_rating %}
-                <span class="badge bg-warning text-dark fw-bold rounded-pill px-3 py-1">
-                  <i class="fas fa-star me-1"></i>Rated {{ booking.ride_rating.overall_rating }}/5
-                </span>
-                <small class="text-muted d-block mt-1" style="font-size:0.72rem;">
-                  Punctuality: {{ booking.ride_rating.driver_punctuality }}⭐ | Cleanliness: {{ booking.ride_rating.bus_cleanliness }}⭐
-                </small>
-              {% else %}
-                <button type="button" class="btn btn-sm btn-warning fw-bold rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#rateRideModal{{ booking.booking_id }}">
-                  <i class="fas fa-star me-1"></i>Rate your Ride
-                </button>
-              {% endif %}
-            </td>
-            <td>
-              <a href="{% url 'bookings:booking_detail' booking.booking_id %}" class="btn btn-view btn-sm">
-                <i class="fas fa-eye"></i>
-              </a>
-            </td>
-          </tr>
-
-          <!-- ─── MODAL: RATE YOUR RIDE ────────────────────────────────────── -->
-          <div class="modal fade" id="rateRideModal{{ booking.booking_id }}" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-              <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden">
-                <div class="modal-header border-0 text-white p-4" style="background:linear-gradient(135deg,#1E3A5F,#2980B9) !important;">
-                  <h5 class="modal-title fw-bold"><i class="fas fa-star text-warning me-2"></i>Rate your Ride — PNR #{{ booking.short_id }}</h5>
-                  <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <form method="POST" action="{% url 'bookings:submit_ride_rating' booking.booking_id %}">
-                  {% csrf_token %}
-                  <div class="modal-body p-4 text-start">
-                    <p class="small text-muted mb-3">Rate driver punctuality and bus cleanliness to help us deliver the best bus commute experience in Anand district.</p>
-                    
-                    <div class="mb-3">
-                      <label class="form-label fw-bold small text-dark"><i class="fas fa-clock text-primary me-1"></i>Driver Punctuality</label>
-                      <select name="driver_punctuality" class="form-select rounded-3 shadow-none fw-semibold">
-                        <option value="5" selected>⭐⭐⭐⭐⭐ 5 Stars - Punctual & On-Time Arrival</option>
-                        <option value="4">⭐⭐⭐⭐ 4 Stars - On Time / Minor Delay (< 5 min)</option>
-                        <option value="3">⭐⭐⭐ 3 Stars - Moderate Delay (5-15 min)</option>
-                        <option value="2">⭐⭐ 2 Stars - Significant Delay</option>
-                        <option value="1">⭐ 1 Star - Unacceptable Delay</option>
-                      </select>
-                    </div>
-
-                    <div class="mb-3">
-                      <label class="form-label fw-bold small text-dark"><i class="fas fa-broom text-success me-1"></i>Bus Cleanliness & Hygiene</label>
-                      <select name="bus_cleanliness" class="form-select rounded-3 shadow-none fw-semibold">
-                        <option value="5" selected>⭐⭐⭐⭐⭐ 5 Stars - Sparkling Clean & Well Maintained</option>
-                        <option value="4">⭐⭐⭐⭐ 4 Stars - Clean & Neat</option>
-                        <option value="3">⭐⭐⭐ 3 Stars - Acceptable Cleanliness</option>
-                        <option value="2">⭐⭐ 2 Stars - Needs Sweeping / Washing</option>
-                        <option value="1">⭐ 1 Star - Dirty / Dusty Bus</option>
-                      </select>
-                    </div>
-
-                    <div class="mb-3">
-                      <label class="form-label fw-bold small text-dark"><i class="fas fa-user-tie text-info me-1"></i>Staff & Conductor Behavior</label>
-                      <select name="staff_behavior" class="form-select rounded-3 shadow-none fw-semibold">
-                        <option value="5" selected>⭐⭐⭐⭐⭐ 5 Stars - Polite, Courteous & Helpful</option>
-                        <option value="4">⭐⭐⭐⭐ 4 Stars - Good Behavior</option>
-                        <option value="3">⭐⭐⭐ 3 Stars - Normal</option>
-                        <option value="2">⭐⭐ 2 Stars - Unhelpful</option>
-                        <option value="1">⭐ 1 Star - Rude / Unprofessional</option>
-                      </select>
-                    </div>
-
-                    <div class="mb-3">
-                      <label class="form-label fw-bold small text-dark"><i class="fas fa-thumbs-up text-warning me-1"></i>Overall Trip Rating</label>
-                      <select name="overall_rating" class="form-select rounded-3 shadow-none fw-bold">
-                        <option value="5" selected>⭐⭐⭐⭐⭐ 5 / 5 - Excellent Experience</option>
-                        <option value="4">⭐⭐⭐⭐ 4 / 5 - Good Experience</option>
-                        <option value="3">⭐⭐⭐ 3 / 5 - Average</option>
-                        <option value="2">⭐⭐ 2 / 5 - Needs Improvement</option>
-                        <option value="1">⭐ 1 / 5 - Poor Experience</option>
-                      </select>
-                    </div>
-
-                    <div class="mb-3">
-                      <label class="form-label fw-bold small text-dark">Feedback & Comments (Optional)</label>
-                      <textarea name="comment" class="form-control rounded-3 shadow-none" rows="3" placeholder="Share specific thoughts on driver skill, bus AC/sanitation, seating, or journey smoothness..."></textarea>
-                    </div>
-
-                  </div>
-                  <div class="modal-footer border-0 bg-light p-3">
-                    <button type="button" class="btn btn-light border rounded-3 fw-semibold" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-warning rounded-3 fw-bold px-4"><i class="fas fa-paper-plane me-1"></i>Submit Feedback</button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-          {% endfor %}
-        </tbody>
-      </table>
     </div>
   {% endif %}
 
@@ -469,56 +369,127 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-// ─── Linear Booking Activity Graph ─────────────────────────────────────
-const labels = {{ graph_labels|safe }};
-const data   = {{ graph_data|safe }};
+// ─── Premium Passenger Booking Analytics Graph ─────────────────────────────
+const labels = {{ graph_labels|safe|default:'[]' }};
+const data   = {{ graph_data|safe|default:'[]' }};
 
-const ctx = document.getElementById('bookingLineChart');
-if (ctx) {
-  new Chart(ctx, {
-    type: 'line',
+let passengerChartInstance = null;
+
+function updateAnalyticsBadges() {
+  if (data && data.length) {
+    const maxVal = Math.max(...data);
+    const maxIdx = data.indexOf(maxVal);
+    const sum = data.reduce((a, b) => a + b, 0);
+
+    const peakBadge = document.getElementById('peakDayBadge');
+    const totalBadge = document.getElementById('totalBookingsBadge');
+    if (peakBadge) {
+      peakBadge.textContent = maxVal > 0 ? `${labels[maxIdx]} (${maxVal} trip${maxVal !== 1 ? 's' : ''})` : 'Active';
+    }
+    if (totalBadge) {
+      totalBadge.textContent = `${sum} Trips`;
+    }
+  }
+}
+
+function renderPassengerChart(chartType = 'line') {
+  const ctx = document.getElementById('bookingLineChart');
+  if (!ctx) return;
+
+  if (passengerChartInstance) {
+    passengerChartInstance.destroy();
+  }
+
+  updateAnalyticsBadges();
+
+  const isLine = chartType === 'line';
+
+  passengerChartInstance = new Chart(ctx, {
+    type: chartType,
     data: {
       labels: labels,
       datasets: [{
-        label: 'Bookings',
+        label: 'Daily Trips Booked',
         data: data,
-        fill: true,
+        fill: isLine,
         backgroundColor: function(context) {
           const chart = context.chart;
           const {ctx: c, chartArea} = chart;
-          if (!chartArea) return 'rgba(30,58,95,0.05)';
-          const gradient = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-          gradient.addColorStop(0,   'rgba(30,58,95,0.25)');
-          gradient.addColorStop(0.5, 'rgba(41,128,185,0.10)');
-          gradient.addColorStop(1,   'rgba(255,255,255,0)');
-          return gradient;
+          if (!chartArea) return 'rgba(59, 130, 246, 0.2)';
+          if (isLine) {
+            const gradient = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+            gradient.addColorStop(0,   'rgba(59, 130, 246, 0.42)');
+            gradient.addColorStop(0.4, 'rgba(139, 92, 246, 0.18)');
+            gradient.addColorStop(0.8, 'rgba(236, 72, 153, 0.04)');
+            gradient.addColorStop(1,   'rgba(255, 255, 255, 0.0)');
+            return gradient;
+          } else {
+            const barGrad = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+            barGrad.addColorStop(0, '#3B82F6');
+            barGrad.addColorStop(0.5, '#8B5CF6');
+            barGrad.addColorStop(1, '#1E3A5F');
+            return barGrad;
+          }
         },
-        borderColor: '#1E3A5F',
-        borderWidth: 2.5,
-        pointBackgroundColor: '#FF6B35',
-        pointBorderColor: '#fff',
-        pointBorderWidth: 2,
-        pointRadius: 5,
-        pointHoverRadius: 7,
-        tension: 0.45,  // Smooth curve
+        borderColor: function(context) {
+          const chart = context.chart;
+          const {ctx: c, chartArea} = chart;
+          if (!chartArea || !isLine) return '#1E3A5F';
+          const lineGrad = c.createLinearGradient(chartArea.left, 0, chartArea.right, 0);
+          lineGrad.addColorStop(0, '#3B82F6');
+          lineGrad.addColorStop(0.5, '#8B5CF6');
+          lineGrad.addColorStop(1, '#FF6B35');
+          return lineGrad;
+        },
+        borderWidth: isLine ? 3.5 : 0,
+        borderRadius: isLine ? 0 : 8,
+        borderSkipped: false,
+        pointBackgroundColor: '#FFFFFF',
+        pointBorderColor: '#FF6B35',
+        pointBorderWidth: 3,
+        pointRadius: isLine ? 5 : 0,
+        pointHoverRadius: isLine ? 8 : 0,
+        pointHoverBackgroundColor: '#FF6B35',
+        pointHoverBorderColor: '#FFFFFF',
+        pointHoverBorderWidth: 3.5,
+        tension: 0.45, // Silky smooth curve
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: true,
-      interaction: { mode: 'index', intersect: false },
+      animation: {
+        duration: 1200,
+        easing: 'easeInOutQuart',
+      },
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: '#1E3A5F',
-          titleColor: '#fff',
-          bodyColor: 'rgba(255,255,255,0.85)',
-          padding: 12,
-          cornerRadius: 10,
+          enabled: true,
+          backgroundColor: '#0F172A',
+          titleColor: '#F8FAFC',
+          titleFont: { size: 12, weight: '700', family: 'system-ui' },
+          bodyColor: '#38BDF8',
+          bodyFont: { size: 12, weight: '600', family: 'system-ui' },
+          padding: { top: 12, bottom: 12, left: 16, right: 16 },
+          cornerRadius: 14,
+          displayColors: false,
+          borderColor: 'rgba(59, 130, 246, 0.3)',
+          borderWidth: 1.5,
           callbacks: {
-            label: ctx => ` ${ctx.parsed.y} Booking${ctx.parsed.y !== 1 ? 's' : ''}`,
+            title: function(items) {
+              return `📅 Date: ${items[0].label}`;
+            },
+            label: function(context) {
+              const val = context.parsed.y;
+              return `🎫 ${val} Trip${val !== 1 ? 's' : ''} Booked`;
+            }
           }
-        },
+        }
       },
       scales: {
         y: {
@@ -526,19 +497,52 @@ if (ctx) {
           ticks: {
             stepSize: 1,
             precision: 0,
-            color: '#888',
+            color: '#64748B',
+            font: { size: 11, weight: '600' },
+            padding: 8,
           },
-          grid: { color: '#f0f0f0' },
+          grid: {
+            color: 'rgba(226, 232, 240, 0.7)',
+            borderDash: [4, 4],
+            drawBorder: false,
+          }
         },
         x: {
-          ticks: { color: '#888', maxRotation: 0, font: { size: 10 } },
-          grid: { display: false },
-        },
-      },
-    },
+          ticks: {
+            color: '#64748B',
+            font: { size: 11, weight: '500' },
+            maxRotation: 0,
+          },
+          grid: {
+            display: false,
+            drawBorder: false,
+          }
+        }
+      }
+    }
   });
 }
+
+function setPassengerChartType(type) {
+  const btnLine = document.getElementById('btnChartLine');
+  const btnBar  = document.getElementById('btnChartBar');
+  if (type === 'line') {
+    btnLine.classList.add('active', 'btn-primary', 'fw-bold');
+    btnLine.classList.remove('text-muted');
+    btnBar.classList.remove('active', 'btn-primary', 'fw-bold');
+    btnBar.classList.add('text-muted');
+  } else {
+    btnBar.classList.add('active', 'btn-primary', 'fw-bold');
+    btnBar.classList.remove('text-muted');
+    btnLine.classList.remove('active', 'btn-primary', 'fw-bold');
+    btnLine.classList.add('text-muted');
+  }
+  renderPassengerChart(type);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+  renderPassengerChart('line');
+
   {% if renewal_alert and show_renewal_modal %}
     const renewalModal = new bootstrap.Modal(document.getElementById('passRenewalModal'));
     renewalModal.show();

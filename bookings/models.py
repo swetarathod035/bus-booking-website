@@ -298,6 +298,20 @@ class BusPass(models.Model):
                 self.valid_from <= today <= self.valid_until)
 
     @property
+    def secure_qr_token(self):
+        import hmac, hashlib, base64, json
+        payload = {
+            "pass": self.pass_number,
+            "valid_until": str(self.valid_until),
+            "passenger": self.passenger.get_full_name() or self.passenger.username,
+            "iss": "ANANDBUS",
+            "type": self.scheme.scheme_type,
+        }
+        payload_b64 = base64.urlsafe_b64encode(json.dumps(payload).encode()).decode()
+        sig = hmac.new(settings.SECRET_KEY.encode(), payload_b64.encode(), hashlib.sha256).hexdigest()[:16]
+        return f"ABTOKEN.{payload_b64}.{sig}"
+
+    @property
     def trips_remaining(self):
         if self.scheme.unlimited_trips or self.scheme.trip_limit == 0:
             return '∞'

@@ -162,14 +162,20 @@
                 </form>
               </td>
               <td class="text-end pe-4">
-                <div class="btn-group">
-                  <a href="{% url 'buses:user_edit' u.pk %}" class="btn btn-sm btn-outline-primary rounded-start-2" title="Edit User">
+                <div class="d-inline-flex gap-1">
+                  <a href="{% url 'buses:user_edit' u.pk %}" class="btn btn-sm btn-outline-primary rounded-2" title="Update / Edit User">
                     <i class="fas fa-edit"></i>
                   </a>
                   {% if u != request.user %}
+                    <form method="POST" action="{% url 'buses:user_toggle_block' u.pk %}" class="d-inline" onsubmit="return confirm('Are you sure you want to {% if u.is_active %}block{% else %}unblock{% endif %} user {{ u.username }}?');">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm rounded-2 {% if u.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %}" title="{% if u.is_active %}Block User{% else %}Unblock User{% endif %}">
+                        <i class="fas {% if u.is_active %}fa-ban{% else %}fa-check-circle{% endif %}"></i>
+                      </button>
+                    </form>
                     <form method="POST" action="{% url 'buses:user_delete' u.pk %}" class="d-inline" onsubmit="return confirm('Are you sure you want to delete user {{ u.username }}?');">
                       {% csrf_token %}
-                      <button type="submit" class="btn btn-sm btn-outline-danger rounded-end-2" title="Delete User">
+                      <button type="submit" class="btn btn-sm btn-outline-danger rounded-2" title="Delete User">
                         <i class="fas fa-trash-alt"></i>
                       </button>
                     </form>

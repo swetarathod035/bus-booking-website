@@ -160,12 +160,43 @@ def live_tracking(request, schedule_id=None):
         occupancy_label = "Low Capacity (Seats Available)"
         occupancy_class = "success"
 
+    # Determine coordinates for map embed
+    map_lat = 22.5645
+    map_lng = 72.9289
+    if latest_location:
+        map_lat = float(latest_location.latitude)
+        map_lng = float(latest_location.longitude)
+    elif stops_data:
+        map_lat = stops_data[0]['lat']
+        map_lng = stops_data[0]['lng']
+
+    # Build all schedules list for client role switching
+    all_schedules_list = []
+    for sch in all_schedules_qs:
+        loc = BusLocation.objects.filter(schedule=sch).order_by('-timestamp').first()
+        r_stops = RouteStop.objects.filter(route=sch.route).select_related('stop').order_by('stop_order')
+        f_stop = r_stops.first()
+        s_lat = float(loc.latitude) if loc else (float(f_stop.stop.latitude) if f_stop and f_stop.stop.latitude else 22.5645)
+        s_lng = float(loc.longitude) if loc else (float(f_stop.stop.longitude) if f_stop and f_stop.stop.longitude else 72.9289)
+        all_schedules_list.append({
+            'id': sch.id,
+            'bus_number': sch.bus.bus_number,
+            'bus_name': sch.bus.bus_name,
+            'route_name': sch.route.route_name,
+            'departure_time': sch.departure_time.strftime('%H:%M') if sch.departure_time else '',
+            'lat': s_lat,
+            'lng': s_lng,
+        })
+
     context = {
         'title': f'Live Tracking — {schedule.bus.bus_name} ({schedule.route.route_name})',
         'schedule': schedule,
         'all_schedules': dropdown_schedules,
+        'all_schedules_json': json.dumps(all_schedules_list),
         'is_admin': is_admin,
         'search_query': search_q,
+        'map_lat': map_lat,
+        'map_lng': map_lng,
         'route_path_json': json.dumps(route_path),
         'stops_json': json.dumps(stops_data),
         'latest_location': latest_location,
@@ -206,18 +237,27 @@ def api_search_schedule(request):
         ).select_related('bus', 'route').order_by('-travel_date', 'departure_time').first()
 
     if schedule:
+        latest_loc = BusLocation.objects.filter(schedule=schedule).order_by('-timestamp').first()
+        route_stops = RouteStop.objects.filter(route=schedule.route).select_related('stop').order_by('stop_order')
+        first_stop = route_stops.first() if route_stops.exists() else None
+        
+        lat = float(latest_loc.latitude) if latest_loc else (float(first_stop.stop.latitude) if first_stop and first_stop.stop.latitude else 22.5645)
+        lng = float(latest_loc.longitude) if latest_loc else (float(first_stop.stop.longitude) if first_stop and first_stop.stop.longitude else 72.9289)
+
         return JsonResponse({
             'found': True,
             'schedule_id': schedule.id,
             'bus_number': schedule.bus.bus_number,
             'bus_name': schedule.bus.bus_name,
             'route_name': schedule.route.route_name,
+            'lat': lat,
+            'lng': lng,
             'redirect_url': f'/tracking/live/{schedule.id}/',
         })
     else:
         return JsonResponse({
             'found': False,
-            'message': f"No active bus schedule found matching '{query}'. Please check the Bus Number or Booking ID."
+            'message': f"Bus Number or Booking ID '{query}' was not found or is currently inactive. Please double-check your bus number (e.g. GJ-18-T-0004)."
         })
 
 

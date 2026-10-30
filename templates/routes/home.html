@@ -169,7 +169,7 @@
               <div class="col-md-6">
                 <label class="form-label"><i class="fas fa-circle-dot me-1" style="color:#4ade80;"></i>From</label>
                 <select class="form-select" name="source" id="sourceStop" required>
-                  <option value="" selected disabled hidden>Select Departure Stop</option>
+                  <option value="" selected disabled hidden>Select Origin</option>
                   {% for stop in stops %}
                     <option value="{{ stop.code }}">{{ stop.name }}</option>
                   {% endfor %}
@@ -178,7 +178,7 @@
               <div class="col-md-6">
                 <label class="form-label"><i class="fas fa-circle-dot me-1" style="color:#f87171;"></i>To</label>
                 <select class="form-select" name="destination" id="destStop" required>
-                  <option value="" selected disabled hidden>Select Destination Stop</option>
+                  <option value="" selected disabled hidden>Select Destination</option>
                   {% for stop in stops %}
                     <option value="{{ stop.code }}">{{ stop.name }}</option>
                   {% endfor %}

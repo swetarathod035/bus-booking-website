@@ -36,6 +36,7 @@ urlpatterns = [
 
     # Admin pass management
     path('passes/admin/', pass_views.admin_pass_list, name='admin_pass_list'),
+    path('passes/admin/trigger-alerts/', pass_views.trigger_pass_expiry_alerts, name='trigger_pass_expiry_alerts'),
     path('passes/admin/<int:pass_id>/approve/', pass_views.admin_approve_pass, name='admin_approve_pass'),
     path('passes/schemes/', pass_views.admin_scheme_list, name='admin_scheme_list'),
     path('passes/schemes/add/', pass_views.admin_scheme_create, name='admin_scheme_create'),

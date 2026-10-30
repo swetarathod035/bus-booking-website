@@ -207,8 +207,12 @@ def special_schemes_view(request):
 def my_passes_view(request):
     """View user pass applications and scheme applications."""
     if request.user.is_authenticated:
-        user_passes = BusPass.objects.filter(user=request.user)
-        user_schemes = SchemeApplication.objects.filter(user=request.user)
+        user_passes = BusPass.objects.filter(
+            Q(user=request.user) | Q(email__iexact=request.user.email)
+        ).distinct().order_by('-applied_at')
+        user_schemes = SchemeApplication.objects.filter(
+            Q(user=request.user) | Q(email__iexact=request.user.email)
+        ).distinct().order_by('-applied_at')
     else:
         user_passes = BusPass.objects.none()
         user_schemes = SchemeApplication.objects.none()

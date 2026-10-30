@@ -44,6 +44,7 @@ urlpatterns = [
     path('admin/users/<int:user_id>/edit/', views.user_edit, name='user_edit'),
     path('admin/users/<int:user_id>/promote/', views.promote_user, name='promote_user'),
     path('admin/users/<int:user_id>/delete/', views.user_delete, name='user_delete'),
+    path('admin/users/<int:user_id>/toggle-block/', views.user_toggle_block, name='user_toggle_block'),
 
     # Bookings Admin Management
     path('admin/bookings/', views.booking_admin_list, name='booking_admin_list'),

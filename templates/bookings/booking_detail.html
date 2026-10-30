@@ -153,15 +153,10 @@ Helpline: 1800-233-6666
         <i class="fas fa-map-marker-alt me-2"></i>Track Bus
       </a>
 
-      <!-- Cancel form -->
-      <form method="POST" action="{% url 'bookings:cancel_booking' booking.booking_id %}"
-            onsubmit="return confirm('Are you sure you want to cancel this booking?')">
-        {% csrf_token %}
-        <input type="hidden" name="reason" value="Cancelled by passenger">
-        <button type="submit" class="btn btn-lg px-4 rounded-3 fw-semibold btn-outline-danger">
-          <i class="fas fa-times me-2"></i>Cancel Booking
-        </button>
-      </form>
+      <!-- Cancel link -->
+      <a href="{% url 'bookings:cancel_ticket_page' %}?pnr={{ booking.short_id }}" class="btn btn-lg px-4 rounded-3 fw-semibold btn-outline-danger">
+        <i class="fas fa-times me-2"></i>Cancel Booking
+      </a>
     {% endif %}
   </div>
 </div>

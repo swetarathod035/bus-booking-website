@@ -47,18 +47,79 @@
   }
 
   #trackingMap {
-    height: 540px;
-    border-radius: 20px;
+    height: 400px;
+    border-radius: 0;
     z-index: 1;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.12);
     transition: all 0.3s ease;
   }
 
+  /* Map Container Card Styling */
+  .map-card-container {
+    width: 100%;
+    border-radius: 16px;
+    border: 1px solid var(--map-border, #e2e8f0);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    background: var(--map-card-bg, #ffffff);
+    overflow: hidden;
+    transition: all 0.3s ease;
+  }
+
+  .map-card-header {
+    background: #f8fafc;
+    border-bottom: 1px solid var(--map-border, #e2e8f0);
+    padding: 12px 18px;
+  }
+
+  body.dark-theme .map-card-header {
+    background: #1e293b;
+    border-bottom-color: #334155;
+  }
+
+  .map-viewport-wrapper {
+    width: 100%;
+    height: 400px;
+    position: relative;
+  }
+
+  #gmapIframe {
+    width: 100%;
+    height: 400px;
+    border: 0;
+    display: block;
+  }
+
   @media (max-width: 767.98px) {
+    .map-viewport-wrapper,
+    #gmapIframe,
     #trackingMap {
-      height: 380px;
-      border-radius: 16px;
+      height: 340px !important;
     }
+  }
+
+  /* Role Switcher Pill Styling */
+  .role-toggle-group {
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 30px;
+    padding: 4px;
+    display: inline-flex;
+  }
+
+  .role-toggle-btn {
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.82rem;
+    font-weight: 700;
+    padding: 5px 14px;
+    border-radius: 25px;
+    transition: all 0.25s ease;
+    cursor: pointer;
+  }
+
+  .role-toggle-btn.active {
+    background: #ffffff;
+    color: #1E3A5F;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   }
 
   .leaflet-routing-container { display: none !important; }
@@ -271,77 +332,77 @@
     </div>
   </div>
 
-  <!-- ─── TOP HEADER / SEARCH BANNER ───────────────────────────────────────── -->
+  <!-- ─── TOP HEADER / SEARCH BANNER ───────────────────── -->
   <div class="card border-0 shadow-sm rounded-4 mb-4 p-3 p-md-4" style="background: linear-gradient(135deg, #1E3A5F 0%, #2980B9 100%); color:#fff;">
     <div class="row align-items-center g-3">
       <div class="col-lg-4">
-        <div class="d-flex align-items-center gap-2 mb-1">
-          <h4 class="fw-bold mb-0"><i class="fas fa-satellite text-warning me-2"></i>Track My Bus — Live GPS</h4>
-          {% if is_admin %}
-            <span class="badge bg-warning text-dark fw-bold ms-2" style="font-size:0.72rem;"><i class="fas fa-user-shield me-1"></i>ADMIN VIEW</span>
-          {% else %}
-            <span class="badge bg-info text-dark fw-bold ms-2" style="font-size:0.72rem;"><i class="fas fa-ticket me-1"></i>PASSENGER VIEW</span>
-          {% endif %}
-          <button class="btn btn-sm btn-outline-light rounded-circle ms-auto d-lg-none" onclick="toggleDarkMode()" title="Toggle Dark Mode">
-            <i class="fas fa-moon" id="themeIconMobile"></i>
-          </button>
-        </div>
+        <h4 class="fw-bold mb-1"><i class="fas fa-satellite text-warning me-2"></i>Track My Bus</h4>
         <p class="small mb-0 opacity-75">
           {% if is_admin %}
-            Admin View: Full access to search, filter & track all 50+ active buses and routes.
+            Select any active bus schedule from the dropdown menu to track its live location.
           {% else %}
-            Passenger View: Enter your Bus Number or Booking ID to track your booked bus.
+            Enter your Bus Number or Booking ID to track live bus location on Google Maps.
           {% endif %}
         </p>
       </div>
 
       <div class="col-lg-5">
-        <label class="form-label small fw-bold text-uppercase text-warning mb-1">
-          <i class="fas fa-search me-1"></i>Search & Select Route / Bus:
-        </label>
-
-        <!-- Searchable Combobox Selector -->
-        <div class="row g-2">
-          {% if is_admin %}
-            <div class="col-12 mb-2 search-filter-box">
-              <i class="fas fa-filter search-icon"></i>
-              <input type="text" class="form-control form-control-sm rounded-3 shadow-none text-dark bg-white" id="searchBusFilter" placeholder="Filter all 50+ buses by Bus #, Route, or Driver..." onkeyup="filterBusList()">
-            </div>
-          {% else %}
-            <div class="col-12 mb-2">
-              <div class="input-group input-group-sm">
-                <span class="input-group-text bg-white border-0 text-muted"><i class="fas fa-bus"></i></span>
-                <input type="text" class="form-control form-control-sm shadow-none text-dark bg-white fw-bold" id="searchBusFilter" value="{{ search_query }}" placeholder="Enter Bus # (e.g. GJ-07-AX-101) or Booking ID..." onkeydown="if(event.key==='Enter') searchBusOrBooking()">
-                <button class="btn btn-warning fw-bold px-3" type="button" onclick="searchBusOrBooking()">
-                  <i class="fas fa-magnifying-glass me-1"></i>Track Bus
-                </button>
-              </div>
-            </div>
-          {% endif %}
-
-          <div class="col-12">
-            <select class="form-select form-select-lg rounded-3 fw-bold fs-6 shadow-none" id="busSelectDropdown" onchange="switchTrackedBus(this.value)">
+        {% if is_admin %}
+          <!-- ADMIN VIEW DROPDOWN MENU -->
+          <div id="adminDropdownContainer">
+            <label class="form-label small fw-bold text-uppercase text-warning mb-1" for="busSelectDropdown">
+              <i class="fas fa-list-check me-1"></i>Select Bus to Track:
+            </label>
+            <select class="form-select form-select-lg rounded-3 fw-bold fs-6 shadow-none text-dark bg-white" id="busSelectDropdown" onchange="onAdminBusSelect(this.value)">
               {% for sch in all_schedules %}
                 <option value="{{ sch.id }}" {% if schedule and sch.id == schedule.id %}selected{% endif %}>
                   🚌 {{ sch.bus.bus_name }} ({{ sch.bus.bus_number }}) — {{ sch.route.route_name }} [Dep: {{ sch.departure_time|time:"H:i" }}]
                 </option>
               {% empty %}
-                <option value="">-- Enter Bus Number or Booking ID above to track --</option>
+                <option value="">-- No active buses available --</option>
               {% endfor %}
             </select>
           </div>
-        </div>
+        {% else %}
+          <!-- PASSENGER SEARCH INPUT -->
+          <div id="passengerSearchContainer">
+            <label class="form-label small fw-bold text-uppercase text-warning mb-1" for="passengerBusInput">
+              <i class="fas fa-search me-1"></i>Enter Bus Number to Track:
+            </label>
+            <div class="input-group">
+              <span class="input-group-text bg-white border-0 text-muted"><i class="fas fa-bus text-primary"></i></span>
+              <input type="text" class="form-control shadow-none text-dark bg-white fw-bold" id="passengerBusInput" value="{{ search_query }}" placeholder="Enter Bus # (e.g. GJ-18-T-0004)..." onkeydown="if(event.key==='Enter') onPassengerTrackSubmit()">
+              <button class="btn btn-warning fw-bold px-4" type="button" id="passengerTrackBtn" onclick="onPassengerTrackSubmit()">
+                <i class="fas fa-location-crosshairs me-1"></i>Track Bus
+              </button>
+            </div>
+          </div>
+        {% endif %}
       </div>
 
-      <div class="col-lg-3 text-lg-end d-flex flex-column flex-sm-row gap-2 justify-content-end">
-        <button class="btn btn-warning rounded-3 fw-bold py-2 px-3 flex-grow-1" onclick="triggerSimulateGPS()">
+      <div class="col-lg-3 text-lg-end d-flex align-items-center justify-content-end gap-2">
+        <button class="btn btn-warning rounded-3 fw-bold py-2 px-3 flex-grow-1 flex-lg-grow-0" onclick="triggerSimulateGPS()">
           <i class="fas fa-play me-1"></i>Move Bus Live
         </button>
-        <button class="btn btn-outline-light rounded-3 fw-bold py-2 px-3 d-none d-lg-inline-block" onclick="toggleDarkMode()" id="darkModeBtnTitle" title="Toggle Dark Mode">
-          <i class="fas fa-moon me-1" id="themeIcon"></i>Dark
+        <button class="btn btn-outline-light rounded-3 fw-bold py-2 px-3" onclick="toggleDarkMode()" id="darkModeBtnTitle">
+          <i class="fas fa-moon me-1" id="themeIcon"></i>Dark Mode
         </button>
       </div>
     </div>
+  </div>
+
+  <!-- ─── PASSENGER SEARCH ERROR HANDLING ALERT ────────────────────────────── -->
+  <div id="passengerErrorAlert" class="alert alert-danger border-0 rounded-4 shadow-sm p-3 mb-4 d-flex align-items-center justify-content-between gap-3" style="display: none;">
+    <div class="d-flex align-items-center gap-3">
+      <div class="rounded-circle bg-danger text-white d-flex align-items-center justify-content-center" style="width:38px;height:38px;min-width:38px;">
+        <i class="fas fa-triangle-exclamation fs-5"></i>
+      </div>
+      <div>
+        <h6 class="fw-bold mb-0 text-danger">Bus Number Not Found</h6>
+        <small class="text-dark" id="passengerErrorMsg">No active bus schedule was found matching your entered bus number. Please verify the bus number.</small>
+      </div>
+    </div>
+    <button type="button" class="btn-close" onclick="dismissPassengerError()"></button>
   </div>
 
   {% if error %}
@@ -415,7 +476,49 @@
   <div class="row g-4">
     <!-- LEFT: Map Column -->
     <div class="col-lg-8">
-      <div id="trackingMap"></div>
+      <!-- ─── MAP CONTAINER CARD (100% Width, 400px Height, Rounded 16px, Soft Shadow) ─── -->
+      <div class="map-card-container mb-4" id="mapContainerCard">
+        <div class="map-card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-danger text-white px-3 py-1-5 rounded-pill fw-bold" style="font-size:0.75rem;">
+              <i class="fab fa-google me-1"></i>Official Google Maps Embed
+            </span>
+            <span class="fw-bold text-dark small ms-1" id="mapHeaderBusInfo">
+              <i class="fas fa-bus text-primary me-1"></i>Bus: <strong id="mapHeaderBusNum">{{ schedule.bus.bus_number|default:"GJ-18-T-0004" }}</strong> (<span id="mapHeaderBusName">{{ schedule.bus.bus_name|default:"City Express" }}</span>)
+            </span>
+          </div>
+
+          <div class="d-flex align-items-center gap-2">
+            <!-- Mode Switcher: Google Map Embed vs Leaflet GPS Overlay -->
+            <div class="btn-group btn-group-sm" role="group">
+              <button type="button" class="btn btn-primary fw-bold" id="btnToggleEmbed" onclick="setMapDisplayMode('embed')">
+                <i class="fab fa-google me-1"></i>Google Map Embed
+              </button>
+              <button type="button" class="btn btn-outline-primary fw-bold" id="btnToggleGps" onclick="setMapDisplayMode('gps')">
+                <i class="fas fa-satellite-dish me-1"></i>Interactive GPS Route
+              </button>
+            </div>
+
+            <a href="https://www.google.com/maps/dir/?api=1&destination={{ map_lat }},{{ map_lng }}" id="googleMapsDirectionsBtn" target="_blank" class="btn btn-sm btn-outline-danger rounded-pill fw-bold">
+              <i class="fas fa-directions me-1"></i>Directions
+            </a>
+          </div>
+        </div>
+
+        <div class="map-viewport-wrapper">
+          <!-- Official Google Maps Embed API iFrame -->
+          <iframe
+            id="gmapIframe"
+            src="https://maps.google.com/maps?q={{ map_lat }},{{ map_lng }}&z=15&output=embed"
+            allowfullscreen=""
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade">
+          </iframe>
+
+          <!-- Interactive Leaflet GPS Map (Hidden by default, toggleable via mode button) -->
+          <div id="trackingMap" style="display: none;"></div>
+        </div>
+      </div>
 
       <!-- Route Progress & Timeline Card -->
       <div class="card info-card p-4 mt-4">
@@ -645,49 +748,133 @@
 <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
 
 <script>
-// Filter Bus Select Dropdown Options dynamically
-function filterBusList() {
-  const query = document.getElementById('searchBusFilter').value.toLowerCase();
-  const dropdown = document.getElementById('busSelectDropdown');
-  const options = dropdown.getElementsByTagName('option');
-  
-  for (let i = 0; i < options.length; i++) {
-    const text = options[i].textContent.toLowerCase();
-    if (text.includes(query)) {
-      options[i].style.display = '';
-    } else {
-      options[i].style.display = 'none';
-    }
+// State Management for Roles and Bus Selection
+const ALL_SCHEDULES_DATA = {{ all_schedules_json|safe|default:'[]' }};
+let currentRole = "{% if is_admin %}admin{% else %}passenger{% endif %}";
+let currentScheduleId = {% if schedule %}{{ schedule.id }}{% else %}null{% endif %};
+
+// Role Switcher Handler (Admin vs Passenger)
+function switchRoleView(role) {
+  currentRole = role;
+  const adminBtn = document.getElementById('roleBtnAdmin');
+  const passBtn = document.getElementById('roleBtnPassenger');
+  const adminContainer = document.getElementById('adminDropdownContainer');
+  const passContainer = document.getElementById('passengerSearchContainer');
+  const descText = document.getElementById('roleDescriptionText');
+
+  if (role === 'admin') {
+    if (adminBtn) adminBtn.classList.add('active');
+    if (passBtn) passBtn.classList.remove('active');
+    if (adminContainer) adminContainer.style.display = 'block';
+    if (passContainer) passContainer.style.display = 'none';
+    if (descText) descText.textContent = "Admin View: Select any active bus schedule from the dropdown menu to track its location.";
+  } else {
+    if (passBtn) passBtn.classList.add('active');
+    if (adminBtn) adminBtn.classList.remove('active');
+    if (adminContainer) adminContainer.style.display = 'none';
+    if (passContainer) passContainer.style.display = 'block';
+    if (descText) descText.textContent = "Passenger View: Enter your Bus Number or Booking ID to track live bus location on Google Maps.";
   }
 }
 
-// Passenger Bus / Booking ID Search & Select Lookup
-function searchBusOrBooking() {
-  const inputEl = document.getElementById('searchBusFilter');
+// Admin Bus Dropdown Selection Handler
+function onAdminBusSelect(scheduleId) {
+  if (!scheduleId) return;
+
+  const sch = ALL_SCHEDULES_DATA.find(s => String(s.id) === String(scheduleId));
+  if (sch) {
+    updateGoogleMapEmbed(sch.lat, sch.lng, sch.bus_number, sch.bus_name);
+  }
+  window.location.href = `/tracking/live/${scheduleId}/`;
+}
+
+// Passenger Track Submission Handler with Error Handling
+function onPassengerTrackSubmit() {
+  const inputEl = document.getElementById('passengerBusInput');
   const query = inputEl ? inputEl.value.trim() : '';
+  const errorAlert = document.getElementById('passengerErrorAlert');
+  const errorMsg = document.getElementById('passengerErrorMsg');
+
   if (!query) {
-    alert('Please enter a Bus Number (e.g. GJ-07-AX-101) or Booking ID.');
+    if (errorAlert && errorMsg) {
+      errorMsg.textContent = "Please enter a valid Bus Number (e.g. GJ-18-T-0004) or Booking ID.";
+      errorAlert.style.display = 'flex';
+    } else {
+      alert("Please enter a Bus Number.");
+    }
     return;
   }
+
+  if (errorAlert) errorAlert.style.display = 'none';
 
   fetch(`/tracking/api/search/?q=${encodeURIComponent(query)}`)
     .then(r => r.json())
     .then(data => {
-      if (data.found && data.redirect_url) {
-        window.location.href = data.redirect_url;
+      if (data.found) {
+        updateGoogleMapEmbed(data.lat, data.lng, data.bus_number, data.bus_name);
+        if (data.redirect_url && String(data.schedule_id) !== String(currentScheduleId)) {
+          window.location.href = data.redirect_url;
+        }
       } else {
-        alert(data.message || 'No active bus schedule found for your request.');
+        if (errorAlert && errorMsg) {
+          errorMsg.textContent = data.message || `No active bus found for '${query}'. Please check the bus number and try again.`;
+          errorAlert.style.display = 'flex';
+        } else {
+          alert(data.message || 'Bus number not found.');
+        }
       }
     })
     .catch(err => {
-      console.error('Search error:', err);
-      alert('Failed to search bus. Please check your network connection.');
+      console.error("Search error:", err);
+      if (errorAlert && errorMsg) {
+        errorMsg.textContent = "Failed to connect to tracking server. Please check your network connection.";
+        errorAlert.style.display = 'flex';
+      }
     });
 }
 
-function switchTrackedBus(scheduleId) {
-  if (scheduleId) {
-    window.location.href = `/tracking/live/${scheduleId}/`;
+function dismissPassengerError() {
+  const errorAlert = document.getElementById('passengerErrorAlert');
+  if (errorAlert) errorAlert.style.display = 'none';
+}
+
+// Update Google Maps Embed iFrame & Location info
+function updateGoogleMapEmbed(lat, lng, busNum, busName) {
+  const iframe = document.getElementById('gmapIframe');
+  if (iframe) {
+    iframe.src = `https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed`;
+  }
+  const busNumEl = document.getElementById('mapHeaderBusNum');
+  const busNameEl = document.getElementById('mapHeaderBusName');
+  if (busNumEl) busNumEl.textContent = busNum;
+  if (busNameEl) busNameEl.textContent = busName;
+
+  const dirBtn = document.getElementById('googleMapsDirectionsBtn');
+  if (dirBtn) {
+    dirBtn.href = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+  }
+}
+
+// Toggle between Google Map Embed View and Leaflet GPS Route View
+function setMapDisplayMode(mode) {
+  const iframe = document.getElementById('gmapIframe');
+  const leafletMap = document.getElementById('trackingMap');
+  const btnEmbed = document.getElementById('btnToggleEmbed');
+  const btnGps = document.getElementById('btnToggleGps');
+
+  if (mode === 'embed') {
+    if (iframe) iframe.style.display = 'block';
+    if (leafletMap) leafletMap.style.display = 'none';
+    if (btnEmbed) btnEmbed.className = 'btn btn-primary fw-bold';
+    if (btnGps) btnGps.className = 'btn btn-outline-primary fw-bold';
+  } else {
+    if (iframe) iframe.style.display = 'none';
+    if (leafletMap) {
+      leafletMap.style.display = 'block';
+      if (window.map) window.map.invalidateSize();
+    }
+    if (btnEmbed) btnEmbed.className = 'btn btn-outline-primary fw-bold';
+    if (btnGps) btnGps.className = 'btn btn-primary fw-bold';
   }
 }
 

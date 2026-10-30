@@ -3,130 +3,140 @@
 
 {% block title %}Digital Conductor & Driver Duty Chart — AnandBus Admin{% endblock %}
 
+{% block extra_css %}
+<style>
+.admin-layout{display:flex;min-height:calc(100vh - 60px);}
+.admin-content{margin-left:260px;flex:1;padding:2rem;}
+.sidebar-link{display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:10px;color:rgba(255,255,255,0.75);text-decoration:none;font-size:0.875rem;transition:all 0.2s;margin-bottom:2px;}
+.sidebar-link:hover{background:rgba(255,255,255,0.12);color:#fff;}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid py-4 px-4">
-  
-  <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
-    <div class="d-flex align-items-center gap-3">
-      <div class="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
-           style="width:52px;height:52px;background:linear-gradient(135deg,#1E3A5F,#2980B9);">
-        <i class="fas fa-clipboard-user text-white fa-lg"></i>
+<div class="admin-layout">
+  {% include 'partials/sidebar_admin.html' %}
+  <div class="admin-content">
+    <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
+             style="width:52px;height:52px;background:linear-gradient(135deg,#1E3A5F,#2980B9);">
+          <i class="fas fa-clipboard-user text-white fa-lg"></i>
+        </div>
+        <div>
+          <h4 class="fw-black mb-0" style="color:var(--brand-primary);">Digital Conductor & Driver Duty Roster</h4>
+          <small class="text-muted">Administrative Shift Assignment & Route Duty Roster</small>
+        </div>
       </div>
-      <div>
-        <h4 class="fw-black mb-0" style="color:var(--brand-primary);">Digital Conductor & Driver Duty Roster</h4>
-        <small class="text-muted">Administrative Shift Assignment & Route Duty Roster</small>
-      </div>
-    </div>
-    
-    <div class="d-flex align-items-center gap-2">
-      <form method="GET" class="d-flex align-items-center gap-2">
-        <input type="date" name="date" value="{{ target_date|date:'Y-m-d' }}" class="form-control rounded-3 shadow-none fw-bold">
-        <button type="submit" class="btn btn-primary rounded-3 px-3 fw-bold flex-shrink-0">
-          <i class="fas fa-filter me-1"></i>Filter Date
+      
+      <div class="d-flex align-items-center gap-2">
+        <form method="GET" class="d-flex align-items-center gap-2">
+          <input type="date" name="date" value="{{ target_date|date:'Y-m-d' }}" class="form-control rounded-3 shadow-none fw-bold">
+          <button type="submit" class="btn btn-primary rounded-3 px-3 fw-bold flex-shrink-0">
+            <i class="fas fa-filter me-1"></i>Filter Date
+          </button>
+        </form>
+        <button class="btn btn-outline-secondary rounded-3 fw-bold" onclick="window.print()">
+          <i class="fas fa-print me-1"></i>Print Duty Roster
         </button>
-      </form>
-      <button class="btn btn-outline-secondary rounded-3 fw-bold" onclick="window.print()">
-        <i class="fas fa-print me-1"></i>Print Duty Roster
-      </button>
+      </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+      <div class="col-md-3">
+        <div class="p-3 bg-white rounded-4 shadow-sm border text-center">
+          <small class="text-muted text-uppercase fw-bold" style="font-size:0.68rem;">Total Trips Assigned</small>
+          <h3 class="fw-black text-primary mb-0 mt-1">{{ total_trips }}</h3>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="p-3 bg-white rounded-4 shadow-sm border text-center">
+          <small class="text-muted text-uppercase fw-bold" style="font-size:0.68rem;">Morning Shift Trips</small>
+          <h3 class="fw-black text-warning mb-0 mt-1">🌅 06:00 - 14:00</h3>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="p-3 bg-white rounded-4 shadow-sm border text-center">
+          <small class="text-muted text-uppercase fw-bold" style="font-size:0.68rem;">Afternoon Shift Trips</small>
+          <h3 class="fw-black text-success mb-0 mt-1">☀️ 14:00 - 22:00</h3>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="p-3 bg-white rounded-4 shadow-sm border text-center">
+          <small class="text-muted text-uppercase fw-bold" style="font-size:0.68rem;">Duty Status</small>
+          <h3 class="fw-black text-info mb-0 mt-1">Active Roster</h3>
+        </div>
+      </div>
+    </div>
+
+    <!-- Duty Table Card -->
+    <div class="card border-0 rounded-4 shadow-sm overflow-hidden">
+      <div class="card-header bg-white p-4 d-flex justify-content-between align-items-center border-0">
+        <h6 class="fw-bold mb-0 text-primary"><i class="fas fa-calendar-check me-2"></i>Duty Roster for {{ target_date|date:"l, d M Y" }}</h6>
+        <span class="badge bg-primary px-3 py-2">Total {{ total_trips }} Assignments</span>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead style="background:#f8fafc; font-size:0.8rem;">
+            <tr>
+              <th class="ps-4 py-3">Shift Timing</th>
+              <th>Bus Number & Name</th>
+              <th>Assigned Conductor</th>
+              <th>Assigned Driver</th>
+              <th>Route & Direction</th>
+              <th>Dep → Arr Time</th>
+              <th>Duty Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in duty_roster %}
+            <tr>
+              <td class="ps-4 fw-bold text-dark">
+                <span class="badge rounded-pill bg-light text-dark border px-3 py-2">{{ item.shift }}</span>
+              </td>
+              <td>
+                <div class="fw-bold text-primary">{{ item.bus.bus_number }}</div>
+                <small class="text-muted">{{ item.bus.bus_name }} ({{ item.bus.total_seats }} Seats)</small>
+              </td>
+              <td>
+                <div class="fw-bold text-dark"><i class="fas fa-user-tie text-primary me-1"></i>{{ item.conductor_name }}</div>
+                <small class="text-muted">Licensed Conductor</small>
+              </td>
+              <td>
+                <div class="fw-bold text-dark"><i class="fas fa-steering-wheel text-success me-1"></i>{{ item.driver.name|default:"Ramesh Patel" }}</div>
+                <small class="text-muted">Lic: {{ item.driver.license_number|default:"GJ-18-2024-998" }}</small>
+              </td>
+              <td>
+                <div class="fw-semibold text-dark">{{ item.route.route_name }}</div>
+                <small class="text-muted">{{ item.route.source }} ➔ {{ item.route.destination }}</small>
+              </td>
+              <td>
+                <span class="fw-bold text-dark">{{ item.departure_time|time:"H:i" }}</span> →
+                <span class="text-muted">{{ item.arrival_time|time:"H:i" }}</span>
+              </td>
+              <td>
+                <span class="badge rounded-pill
+                  {% if item.status_code == 'SCHEDULED' %}bg-primary
+                  {% elif item.status_code == 'DEPARTED' %}bg-warning text-dark
+                  {% elif item.status_code == 'COMPLETED' %}bg-success
+                  {% elif item.status_code == 'DELAYED' %}bg-danger
+                  {% else %}bg-secondary{% endif %} px-3 py-2">
+                  {{ item.status }}
+                </span>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="7" class="text-center py-5 text-muted">
+                <i class="fas fa-clipboard-list fa-3x mb-3 opacity-25"></i>
+                <p class="mb-0">No duty schedules found for this date.</p>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
-
-  <div class="row g-3 mb-4">
-    <div class="col-md-3">
-      <div class="p-3 bg-white rounded-4 shadow-sm border text-center">
-        <small class="text-muted text-uppercase fw-bold" style="font-size:0.68rem;">Total Trips Assigned</small>
-        <h3 class="fw-black text-primary mb-0 mt-1">{{ total_trips }}</h3>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="p-3 bg-white rounded-4 shadow-sm border text-center">
-        <small class="text-muted text-uppercase fw-bold" style="font-size:0.68rem;">Morning Shift Trips</small>
-        <h3 class="fw-black text-warning mb-0 mt-1">🌅 06:00 - 14:00</h3>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="p-3 bg-white rounded-4 shadow-sm border text-center">
-        <small class="text-muted text-uppercase fw-bold" style="font-size:0.68rem;">Afternoon Shift Trips</small>
-        <h3 class="fw-black text-success mb-0 mt-1">☀️ 14:00 - 22:00</h3>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="p-3 bg-white rounded-4 shadow-sm border text-center">
-        <small class="text-muted text-uppercase fw-bold" style="font-size:0.68rem;">Duty Status</small>
-        <h3 class="fw-black text-info mb-0 mt-1">Active Roster</h3>
-      </div>
-    </div>
-  </div>
-
-  <!-- Duty Table Card -->
-  <div class="card border-0 rounded-4 shadow-sm overflow-hidden">
-    <div class="card-header bg-white p-4 d-flex justify-content-between align-items-center border-0">
-      <h6 class="fw-bold mb-0 text-primary"><i class="fas fa-calendar-check me-2"></i>Duty Roster for {{ target_date|date:"l, d M Y" }}</h6>
-      <span class="badge bg-primary px-3 py-2">Total {{ total_trips }} Assignments</span>
-    </div>
-
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead style="background:#f8fafc; font-size:0.8rem;">
-          <tr>
-            <th class="ps-4 py-3">Shift Timing</th>
-            <th>Bus Number & Name</th>
-            <th>Assigned Conductor</th>
-            <th>Assigned Driver</th>
-            <th>Route & Direction</th>
-            <th>Dep → Arr Time</th>
-            <th>Duty Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for item in duty_roster %}
-          <tr>
-            <td class="ps-4 fw-bold text-dark">
-              <span class="badge rounded-pill bg-light text-dark border px-3 py-2">{{ item.shift }}</span>
-            </td>
-            <td>
-              <div class="fw-bold text-primary">{{ item.bus.bus_number }}</div>
-              <small class="text-muted">{{ item.bus.bus_name }} ({{ item.bus.total_seats }} Seats)</small>
-            </td>
-            <td>
-              <div class="fw-bold text-dark"><i class="fas fa-user-tie text-primary me-1"></i>{{ item.conductor_name }}</div>
-              <small class="text-muted">Licensed Conductor</small>
-            </td>
-            <td>
-              <div class="fw-bold text-dark"><i class="fas fa-steering-wheel text-success me-1"></i>{{ item.driver.name|default:"Ramesh Patel" }}</div>
-              <small class="text-muted">Lic: {{ item.driver.license_number|default:"GJ-18-2024-998" }}</small>
-            </td>
-            <td>
-              <div class="fw-semibold text-dark">{{ item.route.route_name }}</div>
-              <small class="text-muted">{{ item.route.source }} ➔ {{ item.route.destination }}</small>
-            </td>
-            <td>
-              <span class="fw-bold text-dark">{{ item.departure_time|time:"H:i" }}</span> →
-              <span class="text-muted">{{ item.arrival_time|time:"H:i" }}</span>
-            </td>
-            <td>
-              <span class="badge rounded-pill
-                {% if item.status_code == 'SCHEDULED' %}bg-primary
-                {% elif item.status_code == 'DEPARTED' %}bg-warning text-dark
-                {% elif item.status_code == 'COMPLETED' %}bg-success
-                {% elif item.status_code == 'DELAYED' %}bg-danger
-                {% else %}bg-secondary{% endif %} px-3 py-2">
-                {{ item.status }}
-              </span>
-            </td>
-          </tr>
-          {% empty %}
-          <tr>
-            <td colspan="7" class="text-center py-5 text-muted">
-              <i class="fas fa-clipboard-list fa-3x mb-3 opacity-25"></i>
-              <p class="mb-0">No duty schedules found for this date.</p>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-
 </div>
 {% endblock %}

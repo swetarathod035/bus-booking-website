@@ -36,6 +36,11 @@ class TrackingTestCase(TestCase):
     def test_live_tracking_page(self):
         response = self.client.get(reverse('tracking:live', args=[self.schedule.id]))
         self.assertEqual(response.status_code, 200)
+        self.assertIn('map_lat', response.context)
+        self.assertIn('map_lng', response.context)
+        self.assertIn('all_schedules_json', response.context)
+        self.assertContains(response, 'gmapIframe')
+        self.assertContains(response, 'maps.google.com/maps')
 
     def test_api_bus_location(self):
         response = self.client.get(reverse('tracking:api_location', args=[self.schedule.id]))
@@ -58,6 +63,8 @@ class TrackingTestCase(TestCase):
         self.assertTrue(data['found'])
         self.assertEqual(data['schedule_id'], self.schedule.id)
         self.assertEqual(data['bus_number'], 'GJ-18-T-0004')
+        self.assertIn('lat', data)
+        self.assertIn('lng', data)
 
     def test_api_search_schedule_not_found(self):
         response = self.client.get(reverse('tracking:api_search') + '?q=NON_EXISTENT_BUS_999')
@@ -70,5 +77,7 @@ class TrackingTestCase(TestCase):
         response = self.client.get(reverse('tracking:live', args=[self.schedule.id]))
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.context['is_admin'])
+        self.assertContains(response, 'passengerSearchContainer')
+        self.assertContains(response, 'adminDropdownContainer')
 
 

@@ -152,3 +152,94 @@ class BookingsTestCase(TestCase):
         self.assertEqual(res2.status_code, 200)
         booking.refresh_from_db()
         self.assertEqual(booking.schedule.travel_date, next_week)
+
+    def test_passenger_dashboard_hides_past_and_cancelled_trips(self):
+        """Test that past and cancelled trips are not displayed on passenger dashboard."""
+        self.client.force_login(self.passenger)
+        yesterday = datetime.date.today() - datetime.timedelta(days=1)
+        past_sch = Schedule.objects.create(
+            route=self.route,
+            bus=self.bus,
+            travel_date=yesterday,
+            departure_time='08:00',
+            arrival_time='09:00',
+            available_seats=40,
+        )
+
+        # Past trip
+        b_past = Booking.objects.create(
+            passenger=self.passenger,
+            schedule=past_sch,
+            boarding_stop=self.stop1,
+            alighting_stop=self.stop2,
+            num_passengers=1,
+            status=Booking.Status.COMPLETED,
+            passenger_email='paxbook@example.com',
+        )
+
+        # Cancelled trip
+        b_cancelled = Booking.objects.create(
+            passenger=self.passenger,
+            schedule=self.schedule,
+            boarding_stop=self.stop1,
+            alighting_stop=self.stop2,
+            num_passengers=1,
+            status=Booking.Status.CANCELLED,
+            passenger_email='paxbook@example.com',
+        )
+
+        response = self.client.get(reverse('bookings:passenger_dashboard'))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'Past Trips & Ratings')
+        self.assertNotIn(b_past, response.context['upcoming_bookings'])
+        self.assertNotIn(b_cancelled, response.context['upcoming_bookings'])
+
+    def test_cancel_booking_redirect_and_pnr_email_verification(self):
+        """Test that clicking cancel redirects to cancel_ticket_page and requires PNR + Email."""
+        from bookings.utils import generate_seat_layout
+        generate_seat_layout(self.schedule)
+
+        self.client.force_login(self.passenger)
+        seat = Seat.objects.filter(schedule=self.schedule, status='AVAILABLE').first()
+        booking = Booking.objects.create(
+            passenger=self.passenger,
+            schedule=self.schedule,
+            boarding_stop=self.stop1,
+            alighting_stop=self.stop2,
+            num_passengers=1,
+            status=Booking.Status.CONFIRMED,
+            passenger_email='paxbook@example.com',
+        )
+        booking.seats.set([seat])
+
+        # 1. cancel_booking view redirects to cancel_ticket_page with PNR param
+        res_redirect = self.client.post(reverse('bookings:cancel_booking', args=[booking.booking_id]))
+        self.assertEqual(res_redirect.status_code, 302)
+        self.assertIn(reverse('bookings:cancel_ticket_page'), res_redirect.url)
+        self.assertIn(booking.short_id, res_redirect.url)
+
+        # 2. Accessing cancel_ticket_page with PNR pre-fills form, but booking is not cancelled yet
+        res_page = self.client.get(f"{reverse('bookings:cancel_ticket_page')}?pnr={booking.short_id}")
+        self.assertEqual(res_page.status_code, 200)
+        booking.refresh_from_db()
+        self.assertEqual(booking.status, Booking.Status.CONFIRMED)
+
+        # 3. Submitting cancel form without correct PNR/Email fails
+        res_fail = self.client.post(reverse('bookings:cancel_ticket_page'), {
+            'action': 'cancel',
+            'pnr_number': booking.short_id,
+            'email': 'wrong@example.com',
+        })
+        self.assertEqual(res_fail.status_code, 200)
+        booking.refresh_from_db()
+        self.assertEqual(booking.status, Booking.Status.CONFIRMED)
+
+        # 4. Submitting cancel form with correct PNR and Email successfully cancels booking
+        res_success = self.client.post(reverse('bookings:cancel_ticket_page'), {
+            'action': 'cancel',
+            'pnr_number': booking.short_id,
+            'email': 'paxbook@example.com',
+        })
+        self.assertEqual(res_success.status_code, 200)
+        booking.refresh_from_db()
+        self.assertIn(booking.status, [Booking.Status.CANCELLED, Booking.Status.REFUNDED])

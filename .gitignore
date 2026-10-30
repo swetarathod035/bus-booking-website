@@ -1,0 +1,44 @@
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+*.cpython-*
+
+# Environment variables & secrets (CRITICAL: Never commit secrets to GitHub)
+.env
+.env.*
+!.env.example
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# SQLite databases & database dumps
+*.sqlite3
+*.db
+
+# Media uploads (user avatars, pass documents, tickets, QR codes)
+media/
+!media/.gitkeep
+
+# Static files collected during build
+staticfiles/
+
+# Vercel deployment cache and outputs
+.vercel
+
+# Operating System & IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs & temp files
+*.log
+*.tmp
+

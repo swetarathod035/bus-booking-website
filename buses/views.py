@@ -39,15 +39,20 @@ def admin_dashboard(request):
         status='SUCCESS', paid_at__date=today
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
-    # Chart data: last 7 days revenue
+    # Chart data: last 7 days revenue and bookings count
     revenue_chart = []
+    bookings_chart = []
     labels = []
     for i in range(6, -1, -1):
         d = today - timedelta(days=i)
         rev = Payment.objects.filter(
             status='SUCCESS', paid_at__date=d
         ).aggregate(total=Sum('amount'))['total'] or 0
+        cnt = Booking.objects.filter(
+            status='CONFIRMED', created_at__date=d
+        ).count()
         revenue_chart.append(float(rev))
+        bookings_chart.append(cnt)
         labels.append(d.strftime('%d %b'))
 
     # Recent bookings
@@ -81,6 +86,7 @@ def admin_dashboard(request):
         'monthly_revenue': monthly_revenue,
         'today_revenue': today_revenue,
         'revenue_chart': json.dumps(revenue_chart),
+        'bookings_chart': json.dumps(bookings_chart),
         'revenue_labels': json.dumps(labels),
         'pie_labels': json.dumps(pie_labels),
         'pie_data': json.dumps(pie_data),
@@ -426,6 +432,29 @@ def user_delete(request, user_id):
     return redirect('buses:user_management')
 
 
+@superadmin_required
+def user_toggle_block(request, user_id):
+    from accounts.models import CustomUser, log_admin_action, AdminAuditLog
+    user = get_object_or_404(CustomUser, pk=user_id)
+    if request.method == 'POST':
+        if user == request.user:
+            messages.error(request, 'You cannot block your own logged-in admin account.')
+        else:
+            user.is_active = not user.is_active
+            user.save()
+            action_str = "blocked" if not user.is_active else "unblocked"
+            log_admin_action(
+                admin_user=request.user,
+                action_type=AdminAuditLog.ActionType.USER_PROMOTED,
+                target_repr=f"User @{user.username}",
+                details=f"Admin {action_str} user @{user.username} ({user.get_full_name() or user.username}).",
+                request=request
+            )
+            messages.success(request, f'User @{user.username} has been successfully {action_str}.')
+    return redirect('buses:user_management')
+
+
+
 # ─── Bus Stop CRUD ───────────────────────────────────────────────────────────
 @superadmin_required
 def stop_list(request):
@@ -677,23 +706,40 @@ def quick_verify_ticket_view(request):
     if ticket_query:
         t = Ticket.objects.filter(
             Q(ticket_number__iexact=ticket_query) |
+            Q(booking__booking_id__iexact=ticket_query.lower()) |
+            Q(booking__short_id__iexact=ticket_query) |
             Q(booking__booking_id__startswith=ticket_query.lower())
         ).select_related('booking__passenger', 'booking__schedule__route', 'booking__schedule__bus').first()
+
+        if not t:
+            b = Booking.objects.filter(
+                Q(booking_id__iexact=ticket_query.lower()) |
+                Q(short_id__iexact=ticket_query) |
+                Q(booking_id__startswith=ticket_query.lower())
+            ).select_related('passenger', 'schedule__route', 'schedule__bus').first()
+            if b:
+                t = Ticket.objects.filter(booking=b).first()
+                if not t:
+                    t = Ticket(
+                        ticket_number=f"AB-{b.schedule.travel_date.strftime('%Y%m%d')}-{b.short_id}",
+                        booking=b,
+                        qr_code_data=f"PNR:{b.short_id}|BUS:{b.schedule.bus.bus_number}|DATE:{b.schedule.travel_date}"
+                    )
 
         if t:
             ticket_result = t
             travel_date = t.booking.schedule.travel_date
-            if travel_date < datetime.date.today():
-                verification_status = 'EXPIRED'
-            elif t.booking.status in ['CANCELLED', 'REFUNDED']:
+            if t.booking.status in ['CANCELLED', 'REFUNDED']:
                 verification_status = 'CANCELLED'
+            elif travel_date < datetime.date.today():
+                verification_status = 'EXPIRED'
             else:
                 verification_status = 'VALID'
         else:
             verification_status = 'INVALID'
 
     return render(request, 'buses/quick_verify.html', {
-        'title': 'Quick E-Ticket Verification',
+        'title': 'Quick E-Ticket Verification — AnandBus',
         'ticket_query': ticket_query,
         'ticket_result': ticket_result,
         'verification_status': verification_status,

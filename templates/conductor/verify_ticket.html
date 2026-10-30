@@ -99,6 +99,49 @@
 
 </div>
 
+<!-- Real-time PASS VALID Popup Modal -->
+<div class="modal fade" id="passValidModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden">
+      <div class="modal-header border-0 text-white p-4" style="background:linear-gradient(135deg,#2ECC71,#27AE60) !important;">
+        <h5 class="modal-title fw-black"><i class="fas fa-shield-check me-2"></i>REAL-TIME VERIFICATION</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4 text-center">
+        <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-3 animate__animated animate__bounceIn"
+             style="width:90px;height:90px;background:#d4f8e0; border:4px solid #27AE60;">
+          <i class="fas fa-check fa-3x" style="color:#27AE60;"></i>
+        </div>
+        <h2 class="fw-black text-success mb-1" style="letter-spacing:1px;">PASS VALID</h2>
+        <span class="badge bg-success px-4 py-2 rounded-pill fs-6 mb-3 shadow-sm" id="modalPassBadge">OFFICIAL VERIFIED PASS</span>
+        
+        <div class="p-3 bg-light rounded-3 text-start small border mb-3">
+          <div class="d-flex justify-content-between mb-1">
+            <span class="text-muted">ID / Pass Number:</span>
+            <strong class="text-dark" id="pvPassNum">AB-STD-2026-998811</strong>
+          </div>
+          <div class="d-flex justify-content-between mb-1">
+            <span class="text-muted">Passenger:</span>
+            <strong class="text-dark" id="pvPaxName">Verified Passenger</strong>
+          </div>
+          <div class="d-flex justify-content-between mb-1">
+            <span class="text-muted">Pass Scheme:</span>
+            <strong class="text-primary" id="pvScheme">Student Concession Pass</strong>
+          </div>
+          <div class="d-flex justify-content-between">
+            <span class="text-muted">Valid Until:</span>
+            <strong class="text-success" id="pvValidUntil">Active & Valid</strong>
+          </div>
+        </div>
+        
+        <button type="button" class="btn btn-success btn-lg w-100 rounded-3 fw-bold" data-bs-dismiss="modal">
+          <i class="fas fa-thumbs-up me-2"></i>CONFIRM BOARDING
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 // Web Audio API Sound Chimes
 let audioCtx = null;
@@ -150,22 +193,39 @@ function playErrorBuzzer() {
   } catch(e) {}
 }
 
+function showPassValidPopup(passNum, paxName, scheme, validUntil) {
+  if (passNum) document.getElementById('pvPassNum').innerText = passNum;
+  if (paxName) document.getElementById('pvPaxName').innerText = paxName;
+  if (scheme) document.getElementById('pvScheme').innerText = scheme;
+  if (validUntil) document.getElementById('pvValidUntil').innerText = validUntil;
+  playSuccessChime();
+  const passModal = new bootstrap.Modal(document.getElementById('passValidModal'));
+  passModal.show();
+}
+
 function simulateCameraScan() {
-  const sampleTickets = ['AB-20260808-12345678', 'AB-20260808-87654321', 'TICKET-998811'];
+  const sampleTickets = ['AB-20260808-12345678', 'AB-20260808-87654321', 'AB-STD-2608-F29901'];
   const randomTicket = sampleTickets[Math.floor(Math.random() * sampleTickets.length)];
   document.getElementById('ticketNumberInput').value = randomTicket;
-  document.getElementById('verifyForm').submit();
+
+  // Perform AJAX scan to show real-time PASS VALID modal
+  fetch(`{% url 'bookings:conductor_scan_pass' %}?pass=${encodeURIComponent(randomTicket)}`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.valid) {
+        showPassValidPopup(data.pass_number, data.passenger, data.scheme_name, data.valid_until);
+      } else {
+        document.getElementById('verifyForm').submit();
+      }
+    })
+    .catch(() => {
+      document.getElementById('verifyForm').submit();
+    });
 }
 
 document.addEventListener('DOMContentLoaded', function() {
   {% if verified %}
-    playSuccessChime();
-    // Cache ticket locally for offline scan
-    try {
-      let cache = JSON.parse(localStorage.getItem('anandbus_scanned_tickets') || '[]');
-      cache.push({ ticket: '{{ ticket.ticket_number }}', verified_at: new Date().toISOString() });
-      localStorage.setItem('anandbus_scanned_tickets', JSON.stringify(cache.slice(-50)));
-    } catch(e) {}
+    showPassValidPopup('{{ ticket.ticket_number }}', '{{ booking.passenger_name }}', 'Standard Ticket', '{{ booking.schedule.travel_date }}');
   {% elif error %}
     playErrorBuzzer();
   {% endif %}
