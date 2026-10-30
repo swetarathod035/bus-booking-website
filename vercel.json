@@ -1,9 +1,14 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "functions": {
-    "anandbus/wsgi.py": {
-      "maxDuration": 30
+  "builds": [
+    {
+      "src": "anandbus/wsgi.py",
+      "use": "@vercel/python"
     }
-  }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "anandbus/wsgi.py"
+    }
+  ]
 }
-
