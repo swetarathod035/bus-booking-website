@@ -7,15 +7,19 @@ def site_settings(request):
     user_notifications = []
     unread_notification_count = 0
 
-    if request.user.is_authenticated:
-        user_notifications = list(Notification.objects.filter(
-            user=request.user
-        ).order_by('-created_at')[:8])
-        
-        unread_notification_count = Notification.objects.filter(
-            user=request.user,
-            is_read=False
-        ).count()
+    try:
+        if request.user.is_authenticated:
+            user_notifications = list(Notification.objects.filter(
+                user=request.user
+            ).order_by('-created_at')[:8])
+            
+            unread_notification_count = Notification.objects.filter(
+                user=request.user,
+                is_read=False
+            ).count()
+    except Exception:
+        user_notifications = []
+        unread_notification_count = 0
 
     return {
         'SITE_NAME': getattr(settings, 'SITE_NAME', 'AnandBus'),
@@ -26,4 +30,3 @@ def site_settings(request):
         'user_notifications': user_notifications,
         'unread_notification_count': unread_notification_count,
     }
-

@@ -82,27 +82,34 @@ ANAND_PLACES = [
 def home(request):
     """Main home page with search, carousel, active routes list, and city info."""
     today = date.today()
-    upcoming_schedules_count = Schedule.objects.filter(
-        travel_date__gte=today,
-        status__in=['SCHEDULED', 'DELAYED']
-    ).count()
-    active_routes_qs = Route.objects.filter(status='ACTIVE').select_related('source', 'destination')
-    stops = Stop.objects.all().order_by('name')
-
-    routes_data = []
-    for route in active_routes_qs:
-        upcoming_sch = Schedule.objects.filter(
-            route=route,
+    try:
+        upcoming_schedules_count = Schedule.objects.filter(
             travel_date__gte=today,
-            status__in=['SCHEDULED', 'DELAYED'],
-            available_seats__gt=0
-        ).order_by('travel_date', 'departure_time').first()
+            status__in=['SCHEDULED', 'DELAYED']
+        ).count()
+        active_routes_qs = Route.objects.filter(status='ACTIVE').select_related('source', 'destination')
+        stops = list(Stop.objects.all().order_by('name'))
 
-        routes_data.append({
-            'route': route,
-            'upcoming_schedule': upcoming_sch,
-            'fare': route.calculate_fare(),
-        })
+        routes_data = []
+        for route in active_routes_qs:
+            upcoming_sch = Schedule.objects.filter(
+                route=route,
+                travel_date__gte=today,
+                status__in=['SCHEDULED', 'DELAYED'],
+                available_seats__gt=0
+            ).order_by('travel_date', 'departure_time').first()
+
+            routes_data.append({
+                'route': route,
+                'upcoming_schedule': upcoming_sch,
+                'fare': route.calculate_fare(),
+            })
+        active_routes_count = active_routes_qs.count()
+    except Exception:
+        upcoming_schedules_count = 0
+        stops = []
+        routes_data = []
+        active_routes_count = 0
 
     tomorrow = today + timedelta(days=1)
 
@@ -111,7 +118,7 @@ def home(request):
         'places': ANAND_PLACES,
         'stops': stops,
         'anand_stops': ANAND_STOPS,
-        'active_routes': active_routes_qs.count(),
+        'active_routes': active_routes_count,
         'routes_data': routes_data,
         'upcoming_schedules': upcoming_schedules_count,
         'default_date': tomorrow.strftime('%Y-%m-%d'),
